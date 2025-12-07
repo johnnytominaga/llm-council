@@ -86,11 +86,16 @@ export default function Sidebar({
   // Sidebar content (shared between desktop and mobile)
   const sidebarContent = (
     <>
-      <div className="p-4 border-b">
-        <h1 className="text-lg mb-3 text-foreground font-medium">LLM Council</h1>
+      <div className="p-4 border-b border-gray-200">
+        <h1 className="text-lg mb-3 text-gray-900 font-medium">LLM Council</h1>
         <Button
           className="w-full"
-          onClick={onNewConversation}
+          onClick={() => {
+            onNewConversation();
+            if (isMobile) {
+              setIsDrawerOpen(false);
+            }
+          }}
         >
           + New Conversation
         </Button>
@@ -98,12 +103,12 @@ export default function Sidebar({
 
       <div className="flex-1 overflow-y-auto p-2">
         {conversations.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">No conversations yet</div>
+          <div className="p-4 text-center text-gray-600 text-sm">No conversations yet</div>
         ) : (
           conversations.map((conv) => (
             <div
               key={conv.id}
-              className={`relative p-3 mb-1 rounded-md cursor-pointer transition-colors hover:bg-accent ${
+              className={`group relative p-3 mb-1 rounded-md cursor-pointer transition-colors hover:bg-gray-100 ${
                 conv.id === currentConversationId ? 'bg-blue-50 border border-blue-500' : ''
               }`}
               onClick={() => editingId !== conv.id && handleSelectConversation(conv.id)}
@@ -116,15 +121,15 @@ export default function Sidebar({
                   onKeyDown={(e) => handleKeyDown(e, conv.id)}
                   onBlur={() => handleSaveEdit(conv.id)}
                   autoFocus
-                  className="w-full py-1 px-2 text-sm border border-blue-500 rounded outline-none bg-background"
+                  className="w-full py-1 px-2 text-sm border border-blue-500 rounded outline-none bg-white"
                 />
               ) : (
                 <>
-                  <div className="text-foreground text-sm mb-1 pr-7">
+                  <div className="text-gray-900 text-sm mb-1 pr-7">
                     {conv.title || 'New Conversation'}
                   </div>
                   <button
-                    className="absolute top-3 right-3 w-6 h-6 bg-transparent border-none text-muted-foreground text-base cursor-pointer opacity-0 transition-all flex items-center justify-center rounded hover:bg-black/10 hover:text-foreground group-hover:opacity-100"
+                    className="absolute top-3 right-3 w-6 h-6 bg-transparent border-none text-gray-600 text-base cursor-pointer opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center rounded hover:bg-black/10 hover:text-gray-900"
                     onClick={(e) => handleStartEdit(conv, e)}
                     title="Edit title"
                   >
@@ -132,7 +137,7 @@ export default function Sidebar({
                   </button>
                 </>
               )}
-              <div className="text-muted-foreground text-xs">
+              <div className="text-gray-600 text-xs">
                 {conv.message_count} messages
               </div>
             </div>
@@ -152,7 +157,7 @@ export default function Sidebar({
             <Button
               variant="outline"
               size="icon"
-              className="mobile-menu-btn fixed top-4 left-4 z-50"
+              className="fixed top-2 left-2 z-50 bg-white border-gray-300 shadow-md hover:bg-gray-50"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -171,12 +176,12 @@ export default function Sidebar({
               </svg>
             </Button>
           </DrawerTrigger>
-          <DrawerContent>
+          <DrawerContent className="bg-white">
             <DrawerHeader className="sr-only">
               <DrawerTitle>Conversations</DrawerTitle>
               <DrawerDescription>View and manage your conversations</DrawerDescription>
             </DrawerHeader>
-            <div className="max-h-[80vh] overflow-y-auto p-0">
+            <div className="max-h-[80vh] overflow-y-auto p-0 bg-white">
               {sidebarContent}
             </div>
           </DrawerContent>

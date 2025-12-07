@@ -30,9 +30,9 @@ export default function Stage1({ responses, streaming = {} }: Stage1Props) {
   }
 
   return (
-    <Card className="my-6 bg-gray-50">
+    <Card className="my-6 bg-gray-50 border-gray-200">
       <CardHeader>
-        <CardTitle className="text-base">Stage 1: Individual Responses</CardTitle>
+        <CardTitle className="text-base text-gray-900">Stage 1: Individual Responses</CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue={displayModels[0]} className="w-full">
@@ -50,7 +50,7 @@ export default function Stage1({ responses, streaming = {} }: Stage1Props) {
 
             return (
               <TabsContent key={model} value={model} className="mt-4">
-                <div className="text-muted-foreground text-xs font-mono mb-3">{model}</div>
+                <div className="text-gray-600 text-xs font-mono mb-3">{model}</div>
                 <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>{content}</ReactMarkdown>
                   {isStreaming && streaming[model] && (

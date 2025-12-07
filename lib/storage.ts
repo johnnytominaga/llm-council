@@ -45,7 +45,7 @@ function getConversationPath(conversationId: string): string {
   return path.join(process.cwd(), DATA_DIR, `${conversationId}.json`);
 }
 
-export function createConversation(conversationId: string): Conversation {
+export async function createConversation(conversationId: string): Promise<Conversation> {
   /**
    * Create a new conversation.
    *
@@ -71,7 +71,7 @@ export function createConversation(conversationId: string): Conversation {
   return conversation;
 }
 
-export function getConversation(conversationId: string): Conversation | null {
+export async function getConversation(conversationId: string): Promise<Conversation | null> {
   /**
    * Load a conversation from storage.
    *
@@ -91,7 +91,7 @@ export function getConversation(conversationId: string): Conversation | null {
   return JSON.parse(data) as Conversation;
 }
 
-export function saveConversation(conversation: Conversation): void {
+export async function saveConversation(conversation: Conversation): Promise<void> {
   /**
    * Save a conversation to storage.
    *
@@ -104,7 +104,7 @@ export function saveConversation(conversation: Conversation): void {
   fs.writeFileSync(filePath, JSON.stringify(conversation, null, 2));
 }
 
-export function listConversations(): ConversationMetadata[] {
+export async function listConversations(): Promise<ConversationMetadata[]> {
   /**
    * List all conversations (metadata only).
    *
@@ -142,7 +142,7 @@ export function listConversations(): ConversationMetadata[] {
   return conversations;
 }
 
-export function addUserMessage(conversationId: string, content: string): void {
+export async function addUserMessage(conversationId: string, content: string): Promise<void> {
   /**
    * Add a user message to a conversation.
    *
@@ -150,7 +150,7 @@ export function addUserMessage(conversationId: string, content: string): void {
    *   conversationId: Conversation identifier
    *   content: User message content
    */
-  const conversation = getConversation(conversationId);
+  const conversation = await getConversation(conversationId);
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
@@ -160,15 +160,15 @@ export function addUserMessage(conversationId: string, content: string): void {
     content,
   });
 
-  saveConversation(conversation);
+  await saveConversation(conversation);
 }
 
-export function addAssistantMessage(
+export async function addAssistantMessage(
   conversationId: string,
   stage1: any[],
   stage2: any[],
   stage3: any
-): void {
+): Promise<void> {
   /**
    * Add an assistant message with all 3 stages to a conversation.
    *
@@ -178,7 +178,7 @@ export function addAssistantMessage(
    *   stage2: List of model rankings
    *   stage3: Final synthesized response
    */
-  const conversation = getConversation(conversationId);
+  const conversation = await getConversation(conversationId);
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
@@ -190,10 +190,10 @@ export function addAssistantMessage(
     stage3,
   });
 
-  saveConversation(conversation);
+  await saveConversation(conversation);
 }
 
-export function updateConversationTitle(conversationId: string, title: string): void {
+export async function updateConversationTitle(conversationId: string, title: string): Promise<void> {
   /**
    * Update the title of a conversation.
    *
@@ -201,11 +201,11 @@ export function updateConversationTitle(conversationId: string, title: string): 
    *   conversationId: Conversation identifier
    *   title: New title for the conversation
    */
-  const conversation = getConversation(conversationId);
+  const conversation = await getConversation(conversationId);
   if (!conversation) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
   conversation.title = title;
-  saveConversation(conversation);
+  await saveConversation(conversation);
 }

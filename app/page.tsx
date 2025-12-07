@@ -216,7 +216,14 @@ export default function Home() {
             break;
 
           case 'title_complete':
-            // Reload conversations to get updated title
+            // Update the current conversation title
+            if (currentConversation) {
+              setCurrentConversation((prev: any) => ({
+                ...prev,
+                title: event.title,
+              }));
+            }
+            // Reload conversations to get updated title in sidebar
             loadConversations();
             break;
 
@@ -247,7 +254,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-900">
       <Sidebar
         conversations={conversations}
         currentConversationId={currentConversationId}
