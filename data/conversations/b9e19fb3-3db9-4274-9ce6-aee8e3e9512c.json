@@ -1,0 +1,20 @@
+{
+  "id": "b9e19fb3-3db9-4274-9ce6-aee8e3e9512c",
+  "created_at": "2025-12-07T07:44:51.211Z",
+  "title": "New Conversation",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Testing"
+    },
+    {
+      "role": "assistant",
+      "stage1": [],
+      "stage2": [],
+      "stage3": {
+        "model": "google/gemini-3-pro-preview",
+        "response": "Error: Unable to generate final synthesis."
+      }
+    }
+  ]
+}

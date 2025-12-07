@@ -8,7 +8,7 @@ import {
   addAssistantMessage,
   updateConversationTitle,
   getConversation,
-} from '@/lib/storage';
+} from '@/lib/storage-adapter';
 import {
   stage1CollectResponses,
   stage2CollectRankings,
@@ -26,7 +26,7 @@ export async function POST(
     const { content } = await request.json();
 
     // Check if conversation exists
-    const conversation = getConversation(id);
+    const conversation = await getConversation(id);
     if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found' },
@@ -35,13 +35,13 @@ export async function POST(
     }
 
     // Add user message to storage
-    addUserMessage(id, content);
+    await addUserMessage(id, content);
 
     // Create a readable stream for SSE
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        function sendEvent(type: string, data: any) {
+        function sendEvent(type: string, data: Record<string, unknown>) {
           const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
           controller.enqueue(encoder.encode(message));
         }
@@ -80,12 +80,12 @@ export async function POST(
           sendEvent('stage3_complete', { data: stage3Result });
 
           // Save assistant message
-          addAssistantMessage(id, stage1Results, stage2Results, stage3Result);
+          await addAssistantMessage(id, stage1Results, stage2Results, stage3Result);
 
           // Generate and update title if this is the first message
           if (conversation.messages.length === 0) {
             const title = await generateConversationTitle(content);
-            updateConversationTitle(id, title);
+            await updateConversationTitle(id, title);
             sendEvent('title_complete', { title });
           }
 

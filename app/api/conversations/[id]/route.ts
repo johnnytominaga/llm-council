@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getConversation } from '@/lib/storage';
+import { getConversation } from '@/lib/storage-adapter';
 
 export async function GET(
   request: Request,
@@ -11,7 +11,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const conversation = getConversation(id);
+    const conversation = await getConversation(id);
 
     if (!conversation) {
       return NextResponse.json(

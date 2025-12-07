@@ -3,12 +3,12 @@
  */
 
 import { NextResponse } from 'next/server';
-import { listConversations, createConversation } from '@/lib/storage';
+import { listConversations, createConversation } from '@/lib/storage-adapter';
 import { randomUUID } from 'crypto';
 
 export async function GET() {
   try {
-    const conversations = listConversations();
+    const conversations = await listConversations();
     return NextResponse.json(conversations);
   } catch (error) {
     console.error('Error listing conversations:', error);
@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST() {
   try {
     const conversationId = randomUUID();
-    const conversation = createConversation(conversationId);
+    const conversation = await createConversation(conversationId);
     return NextResponse.json(conversation);
   } catch (error) {
     console.error('Error creating conversation:', error);
