@@ -19,6 +19,7 @@ interface Stage2Props {
   rankings: Ranking[];
   labelToModel?: Record<string, string>;
   aggregateRankings?: AggregateRanking[];
+  streaming?: Record<string, string>;
 }
 
 function deAnonymizeText(text: string, labelToModel?: Record<string, string>): string {
@@ -33,12 +34,27 @@ function deAnonymizeText(text: string, labelToModel?: Record<string, string>): s
   return result;
 }
 
-export default function Stage2({ rankings, labelToModel, aggregateRankings }: Stage2Props) {
+export default function Stage2({ rankings, labelToModel, aggregateRankings, streaming = {} }: Stage2Props) {
   const [activeTab, setActiveTab] = useState(0);
 
-  if (!rankings || rankings.length === 0) {
+  const isStreaming = Object.keys(streaming).length > 0;
+  const displayModels = isStreaming
+    ? Object.keys(streaming)
+    : rankings?.map((r) => r.model) || [];
+
+  if (!isStreaming && (!rankings || rankings.length === 0)) {
     return null;
   }
+
+  if (displayModels.length === 0) {
+    return null;
+  }
+
+  const currentModel = displayModels[activeTab];
+  const content = isStreaming
+    ? streaming[currentModel] || ''
+    : rankings?.find((r) => r.model === currentModel)?.ranking || '';
+  const parsedRanking = rankings?.find((r) => r.model === currentModel)?.parsed_ranking || [];
 
   return (
     <div className="stage stage2">
@@ -51,33 +67,33 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings }: St
       </p>
 
       <div className="tabs">
-        {rankings.map((rank, index) => (
+        {displayModels.map((model, index) => (
           <button
             key={index}
             className={`tab ${activeTab === index ? 'active' : ''}`}
             onClick={() => setActiveTab(index)}
           >
-            {rank.model.split('/')[1] || rank.model}
+            {model.split('/')[1] || model}
           </button>
         ))}
       </div>
 
       <div className="tab-content">
         <div className="ranking-model">
-          {rankings[activeTab].model}
+          {currentModel}
         </div>
         <div className="ranking-content markdown-content">
           <ReactMarkdown>
-            {deAnonymizeText(rankings[activeTab].ranking, labelToModel)}
+            {deAnonymizeText(content, labelToModel)}
           </ReactMarkdown>
+          {isStreaming && <span className="streaming-cursor">▊</span>}
         </div>
 
-        {rankings[activeTab].parsed_ranking &&
-         rankings[activeTab].parsed_ranking.length > 0 && (
+        {!isStreaming && parsedRanking && parsedRanking.length > 0 && (
           <div className="parsed-ranking">
             <strong>Extracted Ranking:</strong>
             <ol>
-              {rankings[activeTab].parsed_ranking.map((label, i) => (
+              {parsedRanking.map((label, i) => (
                 <li key={i}>
                   {labelToModel && labelToModel[label]
                     ? labelToModel[label].split('/')[1] || labelToModel[label]

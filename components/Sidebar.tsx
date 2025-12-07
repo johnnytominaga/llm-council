@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface Conversation {
   id: string;
   title: string;
@@ -12,6 +14,7 @@ interface SidebarProps {
   currentConversationId: string | null;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
+  onUpdateTitle: (id: string, newTitle: string) => Promise<void>;
 }
 
 export default function Sidebar({
@@ -19,7 +22,37 @@ export default function Sidebar({
   currentConversationId,
   onSelectConversation,
   onNewConversation,
+  onUpdateTitle,
 }: SidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+
+  const handleStartEdit = (conv: Conversation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(conv.id);
+    setEditTitle(conv.title || 'New Conversation');
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (editTitle.trim()) {
+      await onUpdateTitle(id, editTitle.trim());
+    }
+    setEditingId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTitle('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter') {
+      handleSaveEdit(id);
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -39,11 +72,34 @@ export default function Sidebar({
               className={`conversation-item ${
                 conv.id === currentConversationId ? 'active' : ''
               }`}
-              onClick={() => onSelectConversation(conv.id)}
+              onClick={() => editingId !== conv.id && onSelectConversation(conv.id)}
             >
-              <div className="conversation-title">
-                {conv.title || 'New Conversation'}
-              </div>
+              {editingId === conv.id ? (
+                <div className="conversation-title-edit">
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, conv.id)}
+                    onBlur={() => handleSaveEdit(conv.id)}
+                    autoFocus
+                    className="conversation-title-input"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="conversation-title">
+                    {conv.title || 'New Conversation'}
+                  </div>
+                  <button
+                    className="edit-title-btn"
+                    onClick={(e) => handleStartEdit(conv, e)}
+                    title="Edit title"
+                  >
+                    ✎
+                  </button>
+                </>
+              )}
               <div className="conversation-meta">
                 {conv.message_count} messages
               </div>

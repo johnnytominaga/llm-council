@@ -9,10 +9,15 @@ interface FinalResponse {
 
 interface Stage3Props {
   finalResponse: FinalResponse;
+  streaming?: string;
 }
 
-export default function Stage3({ finalResponse }: Stage3Props) {
-  if (!finalResponse) {
+export default function Stage3({ finalResponse, streaming = '' }: Stage3Props) {
+  const isStreaming = streaming.length > 0;
+  const content = isStreaming ? streaming : finalResponse?.response || '';
+  const modelName = finalResponse?.model || '';
+
+  if (!isStreaming && !finalResponse) {
     return null;
   }
 
@@ -20,11 +25,14 @@ export default function Stage3({ finalResponse }: Stage3Props) {
     <div className="stage stage3">
       <h3 className="stage-title">Stage 3: Final Council Answer</h3>
       <div className="final-response">
-        <div className="chairman-label">
-          Chairman: {finalResponse.model.split('/')[1] || finalResponse.model}
-        </div>
+        {modelName && (
+          <div className="chairman-label">
+            Chairman: {modelName.split('/')[1] || modelName}
+          </div>
+        )}
         <div className="final-text markdown-content">
-          <ReactMarkdown>{finalResponse.response}</ReactMarkdown>
+          <ReactMarkdown>{content}</ReactMarkdown>
+          {isStreaming && <span className="streaming-cursor">▊</span>}
         </div>
       </div>
     </div>

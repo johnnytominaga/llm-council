@@ -66,6 +66,27 @@ export default function Home() {
     setCurrentConversationId(id);
   };
 
+  const handleUpdateTitle = async (id: string, newTitle: string) => {
+    try {
+      await api.updateConversationTitle(id, newTitle);
+      // Update conversations list
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === id ? { ...conv, title: newTitle } : conv
+        )
+      );
+      // Update current conversation if it's the one being edited
+      if (currentConversation?.id === id) {
+        setCurrentConversation((prev: any) => ({
+          ...prev,
+          title: newTitle,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update title:', error);
+    }
+  };
+
   const handleSendMessage = async (content: string) => {
     if (!currentConversationId) return;
 
@@ -85,6 +106,11 @@ export default function Home() {
         stage2: null,
         stage3: null,
         metadata: null,
+        streaming: {
+          stage1: {} as Record<string, string>,
+          stage2: {} as Record<string, string>,
+          stage3: '',
+        },
         loading: {
           stage1: false,
           stage2: false,
@@ -110,11 +136,21 @@ export default function Home() {
             });
             break;
 
+          case 'stage1_chunk':
+            setCurrentConversation((prev: any) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              lastMsg.streaming.stage1[event.model] = event.partial;
+              return { ...prev, messages };
+            });
+            break;
+
           case 'stage1_complete':
             setCurrentConversation((prev: any) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
               lastMsg.stage1 = event.data;
+              lastMsg.streaming.stage1 = {};
               lastMsg.loading.stage1 = false;
               return { ...prev, messages };
             });
@@ -129,12 +165,22 @@ export default function Home() {
             });
             break;
 
+          case 'stage2_chunk':
+            setCurrentConversation((prev: any) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              lastMsg.streaming.stage2[event.model] = event.partial;
+              return { ...prev, messages };
+            });
+            break;
+
           case 'stage2_complete':
             setCurrentConversation((prev: any) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
               lastMsg.stage2 = event.data;
               lastMsg.metadata = event.metadata;
+              lastMsg.streaming.stage2 = {};
               lastMsg.loading.stage2 = false;
               return { ...prev, messages };
             });
@@ -149,11 +195,21 @@ export default function Home() {
             });
             break;
 
+          case 'stage3_chunk':
+            setCurrentConversation((prev: any) => {
+              const messages = [...prev.messages];
+              const lastMsg = messages[messages.length - 1];
+              lastMsg.streaming.stage3 = event.partial;
+              return { ...prev, messages };
+            });
+            break;
+
           case 'stage3_complete':
             setCurrentConversation((prev: any) => {
               const messages = [...prev.messages];
               const lastMsg = messages[messages.length - 1];
               lastMsg.stage3 = event.data;
+              lastMsg.streaming.stage3 = '';
               lastMsg.loading.stage3 = false;
               return { ...prev, messages };
             });
@@ -197,6 +253,7 @@ export default function Home() {
         currentConversationId={currentConversationId}
         onSelectConversation={handleSelectConversation}
         onNewConversation={handleNewConversation}
+        onUpdateTitle={handleUpdateTitle}
       />
       <ChatInterface
         conversation={currentConversation}

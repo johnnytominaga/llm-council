@@ -47,6 +47,26 @@ export const api = {
   },
 
   /**
+   * Update a conversation title.
+   */
+  async updateConversationTitle(conversationId: string, title: string) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/title`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to update conversation title');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message and receive streaming updates.
    * @param conversationId - The conversation ID
    * @param content - The message content

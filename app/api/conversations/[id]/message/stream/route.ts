@@ -10,11 +10,12 @@ import {
   getConversation,
 } from '@/lib/storage-adapter';
 import {
-  stage1CollectResponses,
-  stage2CollectRankings,
-  stage3SynthesizeFinal,
+  stage1CollectResponsesStream,
+  stage2CollectRankingsStream,
+  stage3SynthesizeFinalStream,
   calculateAggregateRankings,
   generateConversationTitle,
+  Stage1Result,
 } from '@/lib/council';
 
 // Set maximum duration for Vercel Pro/Enterprise plans
@@ -52,16 +53,51 @@ export async function POST(
         }
 
         try {
-          // Stage 1: Collect responses
+          // Initialize partial results for streaming
+          const stage1Partial: Record<string, string> = {};
+          const stage2Partial: Record<string, string> = {};
+          let stage3Partial = '';
+
+          // Stage 1: Collect responses with streaming
           sendEvent('stage1_start', {});
-          const stage1Results = await stage1CollectResponses(content);
+          const stage1Results = await stage1CollectResponsesStream(
+            content,
+            (model, chunk) => {
+              // Accumulate chunks for each model
+              if (!stage1Partial[model]) {
+                stage1Partial[model] = '';
+              }
+              stage1Partial[model] += chunk;
+
+              // Send streaming update
+              sendEvent('stage1_chunk', {
+                model,
+                chunk,
+                partial: stage1Partial[model],
+              });
+            }
+          );
           sendEvent('stage1_complete', { data: stage1Results });
 
-          // Stage 2: Collect rankings
+          // Stage 2: Collect rankings with streaming
           sendEvent('stage2_start', {});
-          const [stage2Results, labelToModel] = await stage2CollectRankings(
+          const [stage2Results, labelToModel] = await stage2CollectRankingsStream(
             content,
-            stage1Results
+            stage1Results,
+            (model, chunk) => {
+              // Accumulate chunks for each model
+              if (!stage2Partial[model]) {
+                stage2Partial[model] = '';
+              }
+              stage2Partial[model] += chunk;
+
+              // Send streaming update
+              sendEvent('stage2_chunk', {
+                model,
+                chunk,
+                partial: stage2Partial[model],
+              });
+            }
           );
           const aggregateRankings = calculateAggregateRankings(
             stage2Results,
@@ -75,12 +111,22 @@ export async function POST(
             },
           });
 
-          // Stage 3: Synthesize final
+          // Stage 3: Synthesize final with streaming
           sendEvent('stage3_start', {});
-          const stage3Result = await stage3SynthesizeFinal(
+          const stage3Result = await stage3SynthesizeFinalStream(
             content,
             stage1Results,
-            stage2Results
+            stage2Results,
+            (chunk) => {
+              // Accumulate chunks
+              stage3Partial += chunk;
+
+              // Send streaming update
+              sendEvent('stage3_chunk', {
+                chunk,
+                partial: stage3Partial,
+              });
+            }
           );
           sendEvent('stage3_complete', { data: stage3Result });
 

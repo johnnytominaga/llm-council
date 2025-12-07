@@ -2,7 +2,7 @@
  * 3-stage LLM Council orchestration.
  */
 
-import { queryModelsParallel, queryModel, Message } from './openrouter';
+import { queryModelsParallel, queryModel, queryModelStream, Message, StreamChunk } from './openrouter';
 import { COUNCIL_MODELS, CHAIRMAN_MODEL } from './config';
 
 export interface Stage1Result {
@@ -378,4 +378,176 @@ export async function runFullCouncil(
   };
 
   return [stage1Results, stage2Results, stage3Result, metadata];
+}
+
+// ============================================================================
+// STREAMING VERSIONS
+// ============================================================================
+
+export interface StreamCallbacks {
+  onStage1Chunk?: (model: string, chunk: string) => void;
+  onStage2Chunk?: (model: string, chunk: string) => void;
+  onStage3Chunk?: (chunk: string) => void;
+}
+
+export async function stage1CollectResponsesStream(
+  userQuery: string,
+  onChunk: (model: string, chunk: string) => void
+): Promise<Stage1Result[]> {
+  /**
+   * Stage 1 with streaming: Collect individual responses from all council models.
+   * Calls onChunk for each text chunk received from any model.
+   */
+  const messages: Message[] = [{ role: 'user', content: userQuery }];
+
+  // Query all models in parallel with streaming
+  const promises = COUNCIL_MODELS.map(async (model) => {
+    const response = await queryModelStream(model, messages, (streamChunk) => {
+      if (!streamChunk.done && streamChunk.content) {
+        onChunk(model, streamChunk.content);
+      }
+    });
+
+    if (response !== null) {
+      return {
+        model,
+        response: response.content || '',
+      };
+    }
+    return null;
+  });
+
+  const results = await Promise.all(promises);
+
+  // Filter out null results (failed models)
+  return results.filter((r): r is Stage1Result => r !== null);
+}
+
+export async function stage2CollectRankingsStream(
+  userQuery: string,
+  stage1Results: Stage1Result[],
+  onChunk: (model: string, chunk: string) => void
+): Promise<[Stage2Result[], Record<string, string>]> {
+  /**
+   * Stage 2 with streaming: Each model ranks the anonymized responses.
+   * Calls onChunk for each text chunk received from any model.
+   */
+  // Create anonymized labels
+  const labels = stage1Results.map((_, i) => String.fromCharCode(65 + i));
+
+  const labelToModel: Record<string, string> = {};
+  labels.forEach((label, index) => {
+    labelToModel[`Response ${label}`] = stage1Results[index].model;
+  });
+
+  // Build the ranking prompt
+  const responsesText = stage1Results
+    .map((result, index) => `Response ${labels[index]}:\n${result.response}`)
+    .join('\n\n');
+
+  const rankingPrompt = `You are evaluating different responses to the following question:
+
+Question: ${userQuery}
+
+Here are the responses from different models (anonymized):
+
+${responsesText}
+
+Your task:
+1. First, evaluate each response individually. For each response, explain what it does well and what it does poorly.
+2. Then, at the very end of your response, provide a final ranking.
+
+IMPORTANT: Your final ranking MUST be formatted EXACTLY as follows:
+- Start with the line "FINAL RANKING:" (all caps, with colon)
+- Then list the responses from best to worst as a numbered list
+- Each line should be: number, period, space, then ONLY the response label (e.g., "1. Response A")
+- Do not add any other text or explanations in the ranking section
+
+Remember: Evaluate objectively based on accuracy, completeness, clarity, and usefulness.`;
+
+  const messages: Message[] = [{ role: 'user', content: rankingPrompt }];
+
+  // Query all models in parallel with streaming
+  const promises = COUNCIL_MODELS.map(async (model) => {
+    const response = await queryModelStream(model, messages, (streamChunk) => {
+      if (!streamChunk.done && streamChunk.content) {
+        onChunk(model, streamChunk.content);
+      }
+    });
+
+    if (response !== null) {
+      return {
+        model,
+        ranking: response.content || '',
+        parsed_ranking: parseRankingFromText(response.content || ''),
+      };
+    }
+    return null;
+  });
+
+  const results = await Promise.all(promises);
+
+  // Filter out null results
+  const stage2Results = results.filter((r): r is Stage2Result => r !== null);
+
+  return [stage2Results, labelToModel];
+}
+
+export async function stage3SynthesizeFinalStream(
+  userQuery: string,
+  stage1Results: Stage1Result[],
+  stage2Results: Stage2Result[],
+  onChunk: (chunk: string) => void
+): Promise<Stage3Result> {
+  /**
+   * Stage 3 with streaming: Chairman synthesizes the final answer.
+   * Calls onChunk for each text chunk received.
+   */
+  // Build context from Stage 1 and Stage 2
+  const stage1Text = stage1Results
+    .map((r) => `Model: ${r.model}\n${r.response}`)
+    .join('\n\n---\n\n');
+
+  const stage2Text = stage2Results
+    .map((r) => `Model: ${r.model}\n${r.ranking}`)
+    .join('\n\n---\n\n');
+
+  const synthesisPrompt = `You are the chairman of a council of AI models. Your role is to synthesize the best possible answer to the user's question based on the individual responses and peer rankings from the council members.
+
+User's Question:
+${userQuery}
+
+Stage 1 - Individual Responses:
+${stage1Text}
+
+Stage 2 - Peer Rankings and Evaluations:
+${stage2Text}
+
+Your task:
+1. Consider all individual responses and the peer evaluations
+2. Identify the strongest points from each response
+3. Resolve any contradictions or disagreements
+4. Synthesize a comprehensive, accurate, and well-structured final answer
+
+Important: DO NOT simply summarize. Create a cohesive, authoritative response that represents the best collective intelligence of the council.`;
+
+  const messages: Message[] = [{ role: 'user', content: synthesisPrompt }];
+
+  const response = await queryModelStream(CHAIRMAN_MODEL, messages, (streamChunk) => {
+    if (!streamChunk.done && streamChunk.content) {
+      onChunk(streamChunk.content);
+    }
+  });
+
+  if (response === null) {
+    return {
+      model: CHAIRMAN_MODEL,
+      response: 'Error: Failed to synthesize final answer.',
+    };
+  }
+
+  return {
+    model: CHAIRMAN_MODEL,
+    response: response.content || '',
+  };
 }
