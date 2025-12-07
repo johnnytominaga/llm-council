@@ -3,7 +3,7 @@
  * Use this version when deploying to Vercel.
  */
 
-import { put, list } from '@vercel/blob';
+import { put, list, del } from '@vercel/blob';
 
 export interface Conversation {
   id: string;
@@ -46,6 +46,7 @@ export async function createConversation(conversationId: string): Promise<Conver
     access: 'public',
     token: BLOB_TOKEN,
     contentType: 'application/json',
+    addRandomSuffix: false,
   });
 
   return conversation;
@@ -87,10 +88,28 @@ export async function getConversation(conversationId: string): Promise<Conversat
 export async function saveConversation(conversation: Conversation): Promise<void> {
   const blobPath = getConversationBlobPath(conversation.id);
 
+  try {
+    // First, try to find and delete the existing blob
+    const { blobs } = await list({
+      prefix: blobPath,
+      token: BLOB_TOKEN,
+      limit: 1,
+    });
+
+    // Delete existing blob if it exists
+    if (blobs.length > 0) {
+      await del(blobs[0].url, { token: BLOB_TOKEN });
+    }
+  } catch (error) {
+    console.log('No existing blob to delete or error deleting:', error);
+  }
+
+  // Create new blob with the conversation data
   await put(blobPath, JSON.stringify(conversation, null, 2), {
     access: 'public',
     token: BLOB_TOKEN,
     contentType: 'application/json',
+    addRandomSuffix: false,
   });
 }
 

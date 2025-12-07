@@ -2,6 +2,28 @@
 
 ## Common Issues and Solutions
 
+### Issue: "Blob already exists" Error
+
+**Symptoms:**
+- Error: `Vercel Blob: This blob already exists, use allowOverwrite: true...`
+- Happens when sending a message to an existing conversation
+- Conversations can't be updated
+
+**Cause:**
+Vercel Blob Storage doesn't allow overwriting blobs by default when using `addRandomSuffix: false`.
+
+**Solution:**
+This has been fixed in the latest version. The `saveConversation()` function now:
+1. Finds the existing blob by path
+2. Deletes the old blob
+3. Creates a new blob with updated data
+
+**If you still see this issue:**
+```bash
+git pull  # Get latest fixes
+git push  # Redeploy to Vercel
+```
+
 ### Issue: Conversation 404 Error on Vercel
 
 **Symptoms:**
