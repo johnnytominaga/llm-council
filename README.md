@@ -130,14 +130,24 @@ npm run lint
 3. Start the server: `npm start`
 
 Recommended platforms:
-- **Vercel** - Optimized for Next.js (with some edge runtime considerations)
+- **Vercel** - Optimized for Next.js (requires Pro plan for paid models due to timeout limits)
 - **Railway** / **Render** - Good for Node.js apps with file storage
 - **DigitalOcean App Platform** - Full Node.js support
 
-**Note**: The app uses file-based storage in the `data/conversations` directory. For production, consider:
-- Using a persistent volume if deploying to containers
-- Migrating to a database (PostgreSQL, MongoDB) for scalability
-- Using cloud storage (S3, GCS) for conversation data
+**Note**: The app uses file-based storage locally and Vercel Blob Storage in production.
+
+### Vercel Deployment Considerations
+
+**For Paid Models:**
+- Requires **Vercel Pro or Enterprise plan** due to timeout requirements
+- Free Hobby plan (10s timeout) is too short for paid models
+- See [VERCEL_TIMEOUTS.md](VERCEL_TIMEOUTS.md) for detailed configuration
+
+**For Free Models:**
+- Hobby plan works fine
+- Responses are usually fast enough
+
+See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md) for complete deployment instructions.
 
 ## Differences from Original
 

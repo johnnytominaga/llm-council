@@ -21,7 +21,7 @@ async function sleep(ms: number): Promise<void> {
 export async function queryModel(
   model: string,
   messages: Message[],
-  timeout: number = 120000,
+  timeout: number = 180000, // Increased to 3 minutes for paid models
   maxRetries: number = 3
 ): Promise<ModelResponse | null> {
   /**

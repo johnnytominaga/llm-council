@@ -17,6 +17,11 @@ import {
   generateConversationTitle,
 } from '@/lib/council';
 
+// Set maximum duration for Vercel Pro/Enterprise plans
+// Hobby: 10s (default), Pro: 60s, Enterprise: 900s
+// Set to 300s (5 minutes) to allow for slower paid models
+export const maxDuration = 300;
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
