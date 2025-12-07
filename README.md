@@ -149,9 +149,25 @@ This Next.js version consolidates the separate Python backend and React frontend
 - Identical UI and user experience
 - TypeScript for improved type safety
 
+## Testing Free Models
+
+To find which free models actually work on OpenRouter right now:
+
+```bash
+# Load your API key and test models
+export OPENROUTER_API_KEY=$(grep OPENROUTER_API_KEY .env.local | cut -d '=' -f2)
+node test-free-models.js
+```
+
+This will test all common free models and tell you which ones work. Then update `lib/config.ts` with the working models.
+
 ## Troubleshooting
 
 **API errors**: Ensure your `OPENROUTER_API_KEY` is valid and has sufficient credits
+
+**429 Rate Limit errors**: Reduce `COUNCIL_MODELS` to 2 models, or wait 60 seconds between requests
+
+**404 Model not found**: Run `node test-free-models.js` to find working models
 
 **Build errors**: Make sure all dependencies are installed with `npm install`
 

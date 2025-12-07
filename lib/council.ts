@@ -313,8 +313,8 @@ Title:`;
 
   const messages: Message[] = [{ role: 'user', content: titlePrompt }];
 
-  // Use gemini-2.5-flash for title generation (fast and cheap)
-  const response = await queryModel('google/gemini-2.5-flash', messages, 30000);
+  // Use a free model for title generation
+  const response = await queryModel('meta-llama/llama-3.2-3b-instruct:free', messages, 30000);
 
   if (response === null) {
     // Fallback to a generic title
