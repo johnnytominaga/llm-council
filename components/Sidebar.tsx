@@ -1,6 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 
 interface Conversation {
   id: string;
@@ -26,6 +36,19 @@ export default function Sidebar({
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleStartEdit = (conv: Conversation, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -53,8 +76,16 @@ export default function Sidebar({
     }
   };
 
-  return (
-    <div className="sidebar">
+  const handleSelectConversation = (id: string) => {
+    onSelectConversation(id);
+    if (isMobile) {
+      setIsDrawerOpen(false);
+    }
+  };
+
+  // Sidebar content (shared between desktop and mobile)
+  const sidebarContent = (
+    <>
       <div className="sidebar-header">
         <h1>LLM Council</h1>
         <button className="new-conversation-btn" onClick={onNewConversation}>
@@ -72,7 +103,7 @@ export default function Sidebar({
               className={`conversation-item ${
                 conv.id === currentConversationId ? 'active' : ''
               }`}
-              onClick={() => editingId !== conv.id && onSelectConversation(conv.id)}
+              onClick={() => editingId !== conv.id && handleSelectConversation(conv.id)}
             >
               {editingId === conv.id ? (
                 <div className="conversation-title-edit">
@@ -107,6 +138,52 @@ export default function Sidebar({
           ))
         )}
       </div>
-    </div>
+    </>
   );
+
+  // Mobile: Render drawer with trigger button
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile drawer trigger button */}
+        <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+          <DrawerTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="mobile-menu-btn fixed top-4 left-4 z-50"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader className="sr-only">
+              <DrawerTitle>Conversations</DrawerTitle>
+              <DrawerDescription>View and manage your conversations</DrawerDescription>
+            </DrawerHeader>
+            <div className="sidebar-drawer">
+              {sidebarContent}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </>
+    );
+  }
+
+  // Desktop: Render regular sidebar
+  return <div className="sidebar">{sidebarContent}</div>;
 }

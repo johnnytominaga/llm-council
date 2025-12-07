@@ -18,6 +18,12 @@ export const metadata: Metadata = {
         "Kilonova LLM Council is a 3-stage deliberation system where multiple LLMs collaboratively answer user questions with anonymized peer review.",
 };
 
+export const viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
