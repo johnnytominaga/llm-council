@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Response {
   model: string;
@@ -14,8 +15,6 @@ interface Stage1Props {
 }
 
 export default function Stage1({ responses, streaming = {} }: Stage1Props) {
-  const [activeTab, setActiveTab] = useState(0);
-
   // If streaming, show streaming models; otherwise show final responses
   const isStreaming = Object.keys(streaming).length > 0;
   const displayModels = isStreaming
@@ -30,34 +29,39 @@ export default function Stage1({ responses, streaming = {} }: Stage1Props) {
     return null;
   }
 
-  const currentModel = displayModels[activeTab];
-  const content = isStreaming
-    ? streaming[currentModel] || ''
-    : responses?.find((r) => r.model === currentModel)?.response || '';
-
   return (
-    <div className="stage stage1">
-      <h3 className="stage-title">Stage 1: Individual Responses</h3>
+    <Card className="my-6 bg-gray-50">
+      <CardHeader>
+        <CardTitle className="text-base">Stage 1: Individual Responses</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue={displayModels[0]} className="w-full">
+          <TabsList className="flex-wrap h-auto">
+            {displayModels.map((model) => (
+              <TabsTrigger key={model} value={model} className="text-xs">
+                {model.split('/')[1] || model}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {displayModels.map((model) => {
+            const content = isStreaming
+              ? streaming[model] || ''
+              : responses?.find((r) => r.model === model)?.response || '';
 
-      <div className="tabs">
-        {displayModels.map((model, index) => (
-          <button
-            key={index}
-            className={`tab ${activeTab === index ? 'active' : ''}`}
-            onClick={() => setActiveTab(index)}
-          >
-            {model.split('/')[1] || model}
-          </button>
-        ))}
-      </div>
-
-      <div className="tab-content">
-        <div className="model-name">{currentModel}</div>
-        <div className="response-text markdown-content">
-          <ReactMarkdown>{content}</ReactMarkdown>
-          {isStreaming && <span className="streaming-cursor">▊</span>}
-        </div>
-      </div>
-    </div>
+            return (
+              <TabsContent key={model} value={model} className="mt-4">
+                <div className="text-muted-foreground text-xs font-mono mb-3">{model}</div>
+                <div className="prose prose-sm max-w-none">
+                  <ReactMarkdown>{content}</ReactMarkdown>
+                  {isStreaming && streaming[model] && (
+                    <span className="inline-block ml-0.5 font-bold text-blue-500 animate-pulse">▊</span>
+                  )}
+                </div>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

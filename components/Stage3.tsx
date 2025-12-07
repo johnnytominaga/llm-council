@@ -1,6 +1,7 @@
 'use client';
 
 import ReactMarkdown from 'react-markdown';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface FinalResponse {
   model: string;
@@ -22,19 +23,25 @@ export default function Stage3({ finalResponse, streaming = '' }: Stage3Props) {
   }
 
   return (
-    <div className="stage stage3">
-      <h3 className="stage-title">Stage 3: Final Council Answer</h3>
-      <div className="final-response">
-        {modelName && (
-          <div className="chairman-label">
-            Chairman: {modelName.split('/')[1] || modelName}
+    <Card className="my-6 bg-green-50 border-green-300">
+      <CardHeader>
+        <CardTitle className="text-base text-green-800">Stage 3: Final Council Answer</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="bg-white p-5 rounded border border-green-200">
+          {modelName && (
+            <div className="text-green-700 text-xs font-mono font-semibold mb-3">
+              Chairman: {modelName.split('/')[1] || modelName}
+            </div>
+          )}
+          <div className="prose prose-sm max-w-none leading-relaxed">
+            <ReactMarkdown>{content}</ReactMarkdown>
+            {isStreaming && (
+              <span className="inline-block ml-0.5 font-bold text-blue-500 animate-pulse">▊</span>
+            )}
           </div>
-        )}
-        <div className="final-text markdown-content">
-          <ReactMarkdown>{content}</ReactMarkdown>
-          {isStreaming && <span className="streaming-cursor">▊</span>}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -247,7 +247,7 @@ export default function Home() {
   };
 
   return (
-    <div className="app">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <Sidebar
         conversations={conversations}
         currentConversationId={currentConversationId}

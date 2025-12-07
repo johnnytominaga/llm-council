@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -72,44 +74,44 @@ export default function ChatInterface({
 
   if (!conversation) {
     return (
-      <div className="chat-interface">
-        <div className="empty-state">
-          <h2>Welcome to LLM Council</h2>
-          <p>Create a new conversation to get started</p>
+      <div className="flex-1 flex flex-col h-screen bg-background">
+        <div className="flex flex-col items-center justify-center h-full text-center px-6">
+          <h2 className="text-2xl font-medium text-foreground mb-2">Welcome to LLM Council</h2>
+          <p className="text-muted-foreground">Create a new conversation to get started</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="chat-interface">
-      <div className="messages-container">
+    <div className="flex-1 flex flex-col h-screen bg-background">
+      <div className="flex-1 overflow-y-auto p-6">
         {conversation.messages.length === 0 ? (
-          <div className="empty-state">
-            <h2>Start a conversation</h2>
-            <p>Ask a question to consult the LLM Council</p>
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <h2 className="text-2xl font-medium text-foreground mb-2">Start a conversation</h2>
+            <p className="text-muted-foreground">Ask a question to consult the LLM Council</p>
           </div>
         ) : (
           conversation.messages.map((msg, index) => (
-            <div key={index} className="message-group">
+            <div key={index} className="mb-8">
               {msg.role === 'user' ? (
-                <div className="user-message">
-                  <div className="message-label">You</div>
-                  <div className="message-content">
-                    <div className="markdown-content">
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">You</div>
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 max-w-[80%]">
+                    <div className="prose prose-sm max-w-none">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="assistant-message">
-                  <div className="message-label">LLM Council</div>
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">LLM Council</div>
 
                   {/* Stage 1 */}
                   {msg.loading?.stage1 && !msg.streaming?.stage1 && Object.keys(msg.streaming?.stage1 || {}).length === 0 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 1: Collecting individual responses...</span>
+                    <div className="flex items-center gap-3 p-4 my-3 bg-gray-50 rounded-lg border">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground italic">Running Stage 1: Collecting individual responses...</span>
                     </div>
                   )}
                   {(msg.stage1 || (msg.streaming?.stage1 && Object.keys(msg.streaming.stage1).length > 0)) && (
@@ -121,9 +123,9 @@ export default function ChatInterface({
 
                   {/* Stage 2 */}
                   {msg.loading?.stage2 && !msg.streaming?.stage2 && Object.keys(msg.streaming?.stage2 || {}).length === 0 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 2: Peer rankings...</span>
+                    <div className="flex items-center gap-3 p-4 my-3 bg-gray-50 rounded-lg border">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground italic">Running Stage 2: Peer rankings...</span>
                     </div>
                   )}
                   {(msg.stage2 || (msg.streaming?.stage2 && Object.keys(msg.streaming.stage2).length > 0)) && (
@@ -137,9 +139,9 @@ export default function ChatInterface({
 
                   {/* Stage 3 */}
                   {msg.loading?.stage3 && !msg.streaming?.stage3 && (
-                    <div className="stage-loading">
-                      <div className="spinner"></div>
-                      <span>Running Stage 3: Final synthesis...</span>
+                    <div className="flex items-center gap-3 p-4 my-3 bg-gray-50 rounded-lg border">
+                      <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                      <span className="text-sm text-muted-foreground italic">Running Stage 3: Final synthesis...</span>
                     </div>
                   )}
                   {(msg.stage3 || msg.streaming?.stage3) && (
@@ -155,9 +157,9 @@ export default function ChatInterface({
         )}
 
         {isLoading && (
-          <div className="loading-indicator">
-            <div className="spinner"></div>
-            <span>Consulting the council...</span>
+          <div className="flex items-center gap-3 p-4">
+            <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+            <span className="text-sm text-muted-foreground">Consulting the council...</span>
           </div>
         )}
 
@@ -165,23 +167,23 @@ export default function ChatInterface({
       </div>
 
       {conversation.messages.length === 0 && (
-        <form className="input-form" onSubmit={handleSubmit}>
-          <textarea
-            className="message-input"
+        <form className="flex items-end gap-3 p-6 border-t bg-gray-50" onSubmit={handleSubmit}>
+          <Textarea
             placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             rows={3}
+            className="flex-1 min-h-[80px] max-h-[300px] resize-y"
           />
-          <button
+          <Button
             type="submit"
-            className="send-button"
             disabled={!input.trim() || isLoading}
+            size="lg"
           >
             Send
-          </button>
+          </Button>
         </form>
       )}
     </div>

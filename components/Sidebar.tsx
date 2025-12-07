@@ -86,44 +86,45 @@ export default function Sidebar({
   // Sidebar content (shared between desktop and mobile)
   const sidebarContent = (
     <>
-      <div className="sidebar-header">
-        <h1>LLM Council</h1>
-        <button className="new-conversation-btn" onClick={onNewConversation}>
+      <div className="p-4 border-b">
+        <h1 className="text-lg mb-3 text-foreground font-medium">LLM Council</h1>
+        <Button
+          className="w-full"
+          onClick={onNewConversation}
+        >
           + New Conversation
-        </button>
+        </Button>
       </div>
 
-      <div className="conversation-list">
+      <div className="flex-1 overflow-y-auto p-2">
         {conversations.length === 0 ? (
-          <div className="no-conversations">No conversations yet</div>
+          <div className="p-4 text-center text-muted-foreground text-sm">No conversations yet</div>
         ) : (
           conversations.map((conv) => (
             <div
               key={conv.id}
-              className={`conversation-item ${
-                conv.id === currentConversationId ? 'active' : ''
+              className={`relative p-3 mb-1 rounded-md cursor-pointer transition-colors hover:bg-accent ${
+                conv.id === currentConversationId ? 'bg-blue-50 border border-blue-500' : ''
               }`}
               onClick={() => editingId !== conv.id && handleSelectConversation(conv.id)}
             >
               {editingId === conv.id ? (
-                <div className="conversation-title-edit">
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, conv.id)}
-                    onBlur={() => handleSaveEdit(conv.id)}
-                    autoFocus
-                    className="conversation-title-input"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, conv.id)}
+                  onBlur={() => handleSaveEdit(conv.id)}
+                  autoFocus
+                  className="w-full py-1 px-2 text-sm border border-blue-500 rounded outline-none bg-background"
+                />
               ) : (
                 <>
-                  <div className="conversation-title">
+                  <div className="text-foreground text-sm mb-1 pr-7">
                     {conv.title || 'New Conversation'}
                   </div>
                   <button
-                    className="edit-title-btn"
+                    className="absolute top-3 right-3 w-6 h-6 bg-transparent border-none text-muted-foreground text-base cursor-pointer opacity-0 transition-all flex items-center justify-center rounded hover:bg-black/10 hover:text-foreground group-hover:opacity-100"
                     onClick={(e) => handleStartEdit(conv, e)}
                     title="Edit title"
                   >
@@ -131,7 +132,7 @@ export default function Sidebar({
                   </button>
                 </>
               )}
-              <div className="conversation-meta">
+              <div className="text-muted-foreground text-xs">
                 {conv.message_count} messages
               </div>
             </div>
@@ -175,7 +176,7 @@ export default function Sidebar({
               <DrawerTitle>Conversations</DrawerTitle>
               <DrawerDescription>View and manage your conversations</DrawerDescription>
             </DrawerHeader>
-            <div className="sidebar-drawer">
+            <div className="max-h-[80vh] overflow-y-auto p-0">
               {sidebarContent}
             </div>
           </DrawerContent>
@@ -185,5 +186,5 @@ export default function Sidebar({
   }
 
   // Desktop: Render regular sidebar
-  return <div className="sidebar">{sidebarContent}</div>;
+  return <div className="w-[260px] bg-gray-50 border-r flex flex-col h-screen">{sidebarContent}</div>;
 }
