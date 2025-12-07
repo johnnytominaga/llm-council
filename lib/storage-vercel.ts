@@ -3,7 +3,7 @@
  * Use this version when deploying to Vercel.
  */
 
-import { put, del, list, head } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 
 export interface Conversation {
   id: string;
@@ -55,14 +55,29 @@ export async function getConversation(conversationId: string): Promise<Conversat
   const blobPath = getConversationBlobPath(conversationId);
 
   try {
-    const blobUrl = `https://${process.env.BLOB_STORE_ID}.public.blob.vercel-storage.com/${blobPath}`;
-    const response = await fetch(blobUrl);
+    // First, list blobs to get the full URL
+    const { blobs } = await list({
+      prefix: blobPath,
+      token: BLOB_TOKEN,
+      limit: 1,
+    });
 
-    if (!response.ok) {
+    if (blobs.length === 0) {
+      console.log(`Conversation ${conversationId} not found in blob storage`);
       return null;
     }
 
-    return await response.json() as Conversation;
+    // Use the URL from the blob metadata
+    const blobUrl = blobs[0].url;
+    const response = await fetch(blobUrl);
+
+    if (!response.ok) {
+      console.error(`Failed to fetch conversation: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json() as Conversation;
+    return data;
   } catch (error) {
     console.error(`Error fetching conversation ${conversationId}:`, error);
     return null;
@@ -91,11 +106,14 @@ export async function listConversations(): Promise<ConversationMetadata[]> {
       token: BLOB_TOKEN,
     });
 
+    console.log(`Found ${blobs.length} conversations in blob storage`);
+
     const conversations: ConversationMetadata[] = [];
 
     // Fetch each conversation to get metadata
     for (const blob of blobs) {
       try {
+        console.log(`Fetching conversation from: ${blob.url}`);
         const response = await fetch(blob.url);
         if (response.ok) {
           const conv = await response.json();
@@ -105,9 +123,11 @@ export async function listConversations(): Promise<ConversationMetadata[]> {
             title: conv.title || 'New Conversation',
             message_count: conv.messages.length,
           });
+        } else {
+          console.error(`Failed to fetch blob ${blob.pathname}: ${response.status}`);
         }
       } catch (error) {
-        console.error(`Error fetching blob ${blob.url}:`, error);
+        console.error(`Error fetching blob ${blob.pathname}:`, error);
       }
     }
 
@@ -116,6 +136,7 @@ export async function listConversations(): Promise<ConversationMetadata[]> {
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
+    console.log(`Successfully loaded ${conversations.length} conversations`);
     return conversations;
   } catch (error) {
     console.error('Error listing conversations:', error);
