@@ -13,6 +13,11 @@ interface Message {
   stage2?: any[];
   stage3?: any;
   metadata?: any;
+  streaming?: {
+    stage1?: Record<string, string>;
+    stage2?: Record<string, string>;
+    stage3?: string;
+  };
   loading?: {
     stage1?: boolean;
     stage2?: boolean;
