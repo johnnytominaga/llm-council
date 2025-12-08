@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -42,3 +43,21 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# drizzle
+drizzle/
+*.db
+*.db-shm
+*.db-wal
+
+# local data (now using database, but keeping for legacy)
+data/
+
+# test scripts output
+scripts/*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
