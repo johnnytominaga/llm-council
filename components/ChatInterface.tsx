@@ -9,35 +9,10 @@ import ResultsView from './ResultsView';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content?: string;
-  stage1?: any[];
-  stage2?: any[];
-  stage3?: any;
-  metadata?: any;
-  streaming?: {
-    stage1?: Record<string, string>;
-    stage2?: Record<string, string>;
-    stage3?: string;
-  };
-  loading?: {
-    stage1?: boolean;
-    stage2?: boolean;
-    stage3?: boolean;
-  };
-}
-
-interface Conversation {
-  id: string;
-  messages: Message[];
-  title: string;
-  created_at: string;
-}
+import type { ConversationDetail, Message } from '@/types/conversation';
 
 interface ChatInterfaceProps {
-  conversation: Conversation | null;
+  conversation: ConversationDetail | null;
   onSendMessage: (content: string) => void;
   isLoading: boolean;
 }

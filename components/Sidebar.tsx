@@ -11,13 +11,8 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-
-interface Conversation {
-  id: string;
-  title: string;
-  message_count: number;
-  created_at: string;
-}
+import type { Conversation } from '@/types/conversation';
+import { useSession, signOut } from '@/lib/auth-client';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -38,6 +33,7 @@ export default function Sidebar({
   const [editTitle, setEditTitle] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const { data: session } = useSession();
 
   // Detect mobile screen size
   useEffect(() => {
@@ -144,6 +140,29 @@ export default function Sidebar({
           ))
         )}
       </div>
+
+      {/* User section at bottom */}
+      {session?.user && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm">
+              <div className="font-medium text-gray-900">{session.user.name}</div>
+              <div className="text-gray-500 text-xs">{session.user.email}</div>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={async () => {
+              await signOut();
+              window.location.href = '/auth';
+            }}
+          >
+            Sign Out
+          </Button>
+        </div>
+      )}
     </>
   );
 

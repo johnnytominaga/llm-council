@@ -6,15 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import jsPDF from 'jspdf';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content?: string;
-  stage1?: any[];
-  stage2?: any[];
-  stage3?: any;
-  metadata?: any;
-}
+import type { Message } from '@/types/conversation';
 
 interface ResultsViewProps {
   messages: Message[];

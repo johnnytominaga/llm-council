@@ -4,12 +4,23 @@
 
 import { NextResponse } from 'next/server';
 import { updateConversationTitle, getConversation } from '@/lib/storage-adapter';
+import { getSession } from '@/lib/auth-server';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     const { title } = await request.json();
 
@@ -22,7 +33,7 @@ export async function PATCH(
     }
 
     // Check if conversation exists
-    const conversation = await getConversation(id);
+    const conversation = await getConversation(id, userId);
     if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found' },
@@ -31,7 +42,7 @@ export async function PATCH(
     }
 
     // Update title
-    await updateConversationTitle(id, title.trim());
+    await updateConversationTitle(id, title.trim(), userId);
 
     return NextResponse.json({ success: true, title: title.trim() });
   } catch (error) {

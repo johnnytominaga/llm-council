@@ -1,10 +1,11 @@
 /**
- * JSON-based storage for conversations.
+ * Database storage for conversations and messages.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { DATA_DIR } from './config';
+import { eq, desc } from 'drizzle-orm';
+import { db } from './db';
+import { conversation, message } from './db/schema';
+import { nanoid } from 'nanoid';
 
 export interface Conversation {
   id: string;
@@ -28,146 +29,155 @@ export interface ConversationMetadata {
   message_count: number;
 }
 
-function ensureDataDir(): void {
-  /**
-   * Ensure the data directory exists.
-   */
-  const dirPath = path.join(process.cwd(), DATA_DIR);
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-function getConversationPath(conversationId: string): string {
-  /**
-   * Get the file path for a conversation.
-   */
-  return path.join(process.cwd(), DATA_DIR, `${conversationId}.json`);
-}
-
-export async function createConversation(conversationId: string): Promise<Conversation> {
+export async function createConversation(conversationId: string, userId: string): Promise<Conversation> {
   /**
    * Create a new conversation.
    *
    * Args:
    *   conversationId: Unique identifier for the conversation
+   *   userId: User ID to scope conversation to user
    *
    * Returns:
    *   New conversation object
    */
-  ensureDataDir();
+  const now = new Date();
 
-  const conversation: Conversation = {
+  await db.insert(conversation).values({
     id: conversationId,
-    created_at: new Date().toISOString(),
+    userId,
+    title: 'New Conversation',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    id: conversationId,
+    created_at: now.toISOString(),
     title: 'New Conversation',
     messages: [],
   };
-
-  // Save to file
-  const filePath = getConversationPath(conversationId);
-  fs.writeFileSync(filePath, JSON.stringify(conversation, null, 2));
-
-  return conversation;
 }
 
-export async function getConversation(conversationId: string): Promise<Conversation | null> {
+export async function getConversation(conversationId: string, userId: string): Promise<Conversation | null> {
   /**
-   * Load a conversation from storage.
+   * Load a conversation from database.
    *
    * Args:
    *   conversationId: Unique identifier for the conversation
+   *   userId: User ID to scope conversation to user
    *
    * Returns:
    *   Conversation object or null if not found
    */
-  const filePath = getConversationPath(conversationId);
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
 
-  if (!fs.existsSync(filePath)) {
+  if (!conv) {
     return null;
   }
 
-  const data = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(data) as Conversation;
+  const messages = await db.query.message.findMany({
+    where: (messages, { eq }) => eq(messages.conversationId, conversationId),
+    orderBy: (messages, { asc }) => [asc(messages.createdAt)],
+  });
+
+  return {
+    id: conv.id,
+    created_at: conv.createdAt.toISOString(),
+    title: conv.title,
+    messages: messages.map((msg) => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content || undefined,
+      stage1: msg.stage1 ? JSON.parse(msg.stage1) : undefined,
+      stage2: msg.stage2 ? JSON.parse(msg.stage2) : undefined,
+      stage3: msg.stage3 ? JSON.parse(msg.stage3) : undefined,
+    })),
+  };
 }
 
-export async function saveConversation(conversation: Conversation): Promise<void> {
+export async function saveConversation(conv: Conversation, userId: string): Promise<void> {
   /**
-   * Save a conversation to storage.
-   *
-   * Args:
-   *   conversation: Conversation object to save
+   * This function is kept for backward compatibility but doesn't do anything
+   * since we now save messages individually through addUserMessage and addAssistantMessage.
    */
-  ensureDataDir();
-
-  const filePath = getConversationPath(conversation.id);
-  fs.writeFileSync(filePath, JSON.stringify(conversation, null, 2));
+  // No-op - messages are saved individually
 }
 
-export async function listConversations(): Promise<ConversationMetadata[]> {
+export async function listConversations(userId: string): Promise<ConversationMetadata[]> {
   /**
    * List all conversations (metadata only).
+   *
+   * Args:
+   *   userId: User ID to scope conversations to user
    *
    * Returns:
    *   List of conversation metadata objects
    */
-  ensureDataDir();
+  const conversations = await db.query.conversation.findMany({
+    where: (conversations, { eq }) => eq(conversations.userId, userId),
+    orderBy: (conversations, { desc }) => [desc(conversations.createdAt)],
+  });
 
-  const dirPath = path.join(process.cwd(), DATA_DIR);
-  const files = fs.readdirSync(dirPath);
-
-  const conversations: ConversationMetadata[] = [];
-
-  for (const filename of files) {
-    if (filename.endsWith('.json')) {
-      const filePath = path.join(dirPath, filename);
-      const data = fs.readFileSync(filePath, 'utf-8');
-      const conv = JSON.parse(data);
-
-      // Return metadata only
-      conversations.push({
-        id: conv.id,
-        created_at: conv.created_at,
-        title: conv.title || 'New Conversation',
-        message_count: conv.messages.length,
+  // Get message counts for each conversation
+  const conversationsWithCounts = await Promise.all(
+    conversations.map(async (conv) => {
+      const messageCount = await db.query.message.findMany({
+        where: (messages, { eq }) => eq(messages.conversationId, conv.id),
       });
-    }
-  }
 
-  // Sort by creation time, newest first
-  conversations.sort((a, b) =>
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return {
+        id: conv.id,
+        created_at: conv.createdAt.toISOString(),
+        title: conv.title,
+        message_count: messageCount.length,
+      };
+    })
   );
 
-  return conversations;
+  return conversationsWithCounts;
 }
 
-export async function addUserMessage(conversationId: string, content: string): Promise<void> {
+export async function addUserMessage(conversationId: string, content: string, userId: string): Promise<void> {
   /**
    * Add a user message to a conversation.
    *
    * Args:
    *   conversationId: Conversation identifier
    *   content: User message content
+   *   userId: User ID to scope conversation to user
    */
-  const conversation = await getConversation(conversationId);
-  if (!conversation) {
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
-  conversation.messages.push({
+  await db.insert(message).values({
+    id: nanoid(),
+    conversationId,
     role: 'user',
     content,
+    createdAt: new Date(),
   });
 
-  await saveConversation(conversation);
+  // Update conversation updatedAt
+  await db
+    .update(conversation)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversation.id, conversationId));
 }
 
 export async function addAssistantMessage(
   conversationId: string,
   stage1: any[],
   stage2: any[],
-  stage3: any
+  stage3: any,
+  userId: string
 ): Promise<void> {
   /**
    * Add an assistant message with all 3 stages to a conversation.
@@ -177,35 +187,54 @@ export async function addAssistantMessage(
    *   stage1: List of individual model responses
    *   stage2: List of model rankings
    *   stage3: Final synthesized response
+   *   userId: User ID to scope conversation to user
    */
-  const conversation = await getConversation(conversationId);
-  if (!conversation) {
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
-  conversation.messages.push({
+  await db.insert(message).values({
+    id: nanoid(),
+    conversationId,
     role: 'assistant',
-    stage1,
-    stage2,
-    stage3,
+    stage1: JSON.stringify(stage1),
+    stage2: JSON.stringify(stage2),
+    stage3: JSON.stringify(stage3),
+    createdAt: new Date(),
   });
 
-  await saveConversation(conversation);
+  // Update conversation updatedAt
+  await db
+    .update(conversation)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversation.id, conversationId));
 }
 
-export async function updateConversationTitle(conversationId: string, title: string): Promise<void> {
+export async function updateConversationTitle(conversationId: string, title: string, userId: string): Promise<void> {
   /**
    * Update the title of a conversation.
    *
    * Args:
    *   conversationId: Conversation identifier
    *   title: New title for the conversation
+   *   userId: User ID to scope conversation to user
    */
-  const conversation = await getConversation(conversationId);
-  if (!conversation) {
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
     throw new Error(`Conversation ${conversationId} not found`);
   }
 
-  conversation.title = title;
-  await saveConversation(conversation);
+  await db
+    .update(conversation)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(conversation.id, conversationId));
 }

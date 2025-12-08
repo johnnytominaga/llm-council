@@ -17,6 +17,7 @@ import {
   generateConversationTitle,
   Stage1Result,
 } from '@/lib/council';
+import { getSession } from '@/lib/auth-server';
 
 // Set maximum duration for Vercel Pro/Enterprise plans
 // Hobby: 10s (default), Pro: 60s, Enterprise: 900s
@@ -28,11 +29,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     const { content } = await request.json();
 
     // Check if conversation exists
-    const conversation = await getConversation(id);
+    const conversation = await getConversation(id, userId);
     if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found' },
@@ -41,7 +52,7 @@ export async function POST(
     }
 
     // Add user message to storage
-    await addUserMessage(id, content);
+    await addUserMessage(id, content, userId);
 
     // Create a readable stream for SSE
     const encoder = new TextEncoder();
@@ -131,12 +142,12 @@ export async function POST(
           sendEvent('stage3_complete', { data: stage3Result });
 
           // Save assistant message
-          await addAssistantMessage(id, stage1Results, stage2Results, stage3Result);
+          await addAssistantMessage(id, stage1Results, stage2Results, stage3Result, userId);
 
           // Generate and update title if this is the first message
           if (conversation.messages.length === 0) {
             const title = await generateConversationTitle(content);
-            await updateConversationTitle(id, title);
+            await updateConversationTitle(id, title, userId);
             sendEvent('title_complete', { title });
           }
 

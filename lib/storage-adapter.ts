@@ -1,32 +1,28 @@
 /**
- * Storage adapter that automatically uses the correct storage backend.
- * - Vercel Blob Storage when BLOB_READ_WRITE_TOKEN is available
- * - File-based storage for local development
+ * Storage adapter using Turso database.
+ * All conversations and messages are stored in the database.
  */
+
+import {
+  createConversation as dbCreateConversation,
+  getConversation as dbGetConversation,
+  saveConversation as dbSaveConversation,
+  listConversations as dbListConversations,
+  addUserMessage as dbAddUserMessage,
+  addAssistantMessage as dbAddAssistantMessage,
+  updateConversationTitle as dbUpdateConversationTitle,
+} from './storage';
 
 import type { Conversation, ConversationMetadata } from './storage';
 
-// Check if we're running on Vercel with Blob Storage configured
-const USE_BLOB_STORAGE = !!process.env.BLOB_READ_WRITE_TOKEN;
+console.log('Using Turso database storage');
 
-let storage: any;
-
-if (USE_BLOB_STORAGE) {
-  // Use Vercel Blob Storage
-  storage = require('./storage-vercel');
-  console.log('Using Vercel Blob Storage');
-} else {
-  // Use file-based storage
-  storage = require('./storage');
-  console.log('Using file-based storage');
-}
-
-export const createConversation = storage.createConversation;
-export const getConversation = storage.getConversation;
-export const saveConversation = storage.saveConversation;
-export const listConversations = storage.listConversations;
-export const addUserMessage = storage.addUserMessage;
-export const addAssistantMessage = storage.addAssistantMessage;
-export const updateConversationTitle = storage.updateConversationTitle;
+export const createConversation = dbCreateConversation;
+export const getConversation = dbGetConversation;
+export const saveConversation = dbSaveConversation;
+export const listConversations = dbListConversations;
+export const addUserMessage = dbAddUserMessage;
+export const addAssistantMessage = dbAddAssistantMessage;
+export const updateConversationTitle = dbUpdateConversationTitle;
 
 export type { Conversation, ConversationMetadata };
