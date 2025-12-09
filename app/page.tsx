@@ -10,12 +10,11 @@ import type { Conversation, ConversationDetail, Message } from "@/types/conversa
 
 export default function Home() {
     const router = useRouter();
-    const [sessionFetched, setSessionFetched] = useState(false);
     const sessionResult = useSession();
 
     console.log('[Home] useSession result:', sessionResult);
 
-    const { data: session, isPending, error, refetch } = sessionResult;
+    const { data: session, isPending, error } = sessionResult;
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<
         string | null
@@ -23,39 +22,29 @@ export default function Home() {
     const [currentConversation, setCurrentConversation] = useState<ConversationDetail | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Force session fetch on mount
-    useEffect(() => {
-        console.log('[Home] Mounting, forcing session refetch');
-        refetch().then(() => {
-            console.log('[Home] Session refetched');
-            setSessionFetched(true);
-        });
-    }, [refetch]);
-
-    // Auth guard
+    // Auth guard - wait for pending to complete before redirecting
     useEffect(() => {
         console.log('[Home] Session check:', {
             session,
             isPending,
             error,
-            sessionFetched,
             hasSession: !!session,
             sessionUser: session?.user?.email
         });
 
-        // Only check auth after we've tried to fetch the session
-        if (!sessionFetched) {
-            console.log('[Home] Waiting for initial session fetch...');
+        // Wait for the session check to complete
+        if (isPending) {
+            console.log('[Home] Still loading session...');
             return;
         }
 
-        if (!isPending && !session) {
+        if (!session) {
             console.log('[Home] No session found, redirecting to /auth');
             router.push('/auth');
-        } else if (session) {
+        } else {
             console.log('[Home] Session found! User:', session.user?.email);
         }
-    }, [session, isPending, error, router, sessionFetched]);
+    }, [session, isPending, error, router]);
 
     // Don't render until we know the auth state
     if (isPending) {
