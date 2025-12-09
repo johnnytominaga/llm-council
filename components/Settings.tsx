@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { COUNCIL_MODELS, CHAIRMAN_MODEL } from '@/lib/config';
 
 interface SettingsProps {
   open: boolean;
@@ -36,13 +37,85 @@ interface Model {
   };
 }
 
+interface ModelSelectProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  availableModels: Model[];
+  disabled: boolean;
+  placeholder: string;
+  defaultModels: string[];
+}
+
+function ModelSelect({ value, onValueChange, availableModels, disabled, placeholder, defaultModels }: ModelSelectProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredModels = searchTerm
+    ? availableModels.filter(
+        (model) =>
+          model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          model.id.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : availableModels;
+
+  // Reset search when dropdown closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchTerm('');
+    }
+  }, [isOpen]);
+
+  return (
+    <Select value={value} onValueChange={onValueChange} disabled={disabled} onOpenChange={setIsOpen}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <div className="sticky top-0 bg-white p-2 border-b border-gray-200 z-10">
+          <Input
+            type="text"
+            placeholder="Search models..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-8"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+        </div>
+        <div className="max-h-[300px] overflow-y-auto">
+          {filteredModels.length === 0 ? (
+            <div className="px-2 py-6 text-center text-sm text-gray-500">
+              No models found
+            </div>
+          ) : (
+            filteredModels.map((model) => {
+              const isDefault = defaultModels.includes(model.id);
+              return (
+                <SelectItem key={model.id} value={model.id}>
+                  <div className="flex items-center justify-between w-full">
+                    <span>{model.name}</span>
+                    {isDefault && (
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })
+          )}
+        </div>
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function Settings({ open, onOpenChange }: SettingsProps) {
   const [loading, setLoading] = useState(false);
   const [loadingModels, setLoadingModels] = useState(true);
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
   const [councilModels, setCouncilModels] = useState<string[]>(['', '', '', '']);
   const [chairmanModel, setChairmanModel] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Load settings and available models
   useEffect(() => {
@@ -79,18 +152,6 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
       setLoadingModels(false);
     }
   };
-
-  // Filter and sort models based on search term
-  const filteredModels = useMemo(() => {
-    if (!searchTerm) return availableModels;
-
-    const lowerSearch = searchTerm.toLowerCase();
-    return availableModels.filter(
-      (model) =>
-        model.name.toLowerCase().includes(lowerSearch) ||
-        model.id.toLowerCase().includes(lowerSearch)
-    );
-  }, [availableModels, searchTerm]);
 
   const handleSave = async () => {
     // Validate that all 4 council models are selected
@@ -134,24 +195,6 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Search Filter */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Search Models</label>
-            <Input
-              type="text"
-              placeholder="Filter by name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={loadingModels}
-              className="w-full"
-            />
-            {searchTerm && (
-              <p className="text-xs text-gray-500">
-                Found {filteredModels.length} model{filteredModels.length !== 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
-
           {/* Council Models */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Council Models (4 required)</h3>
@@ -163,28 +206,14 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
                 <label className="text-sm text-gray-700">
                   Council Model {index + 1}
                 </label>
-                <Select
+                <ModelSelect
                   value={modelId}
                   onValueChange={(value) => updateCouncilModel(index, value)}
+                  availableModels={availableModels}
                   disabled={loadingModels}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={loadingModels ? 'Loading models...' : 'Select a model'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredModels.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-gray-500">
-                        No models found
-                      </div>
-                    ) : (
-                      filteredModels.map((model) => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                  placeholder={loadingModels ? 'Loading models...' : 'Select a model'}
+                  defaultModels={COUNCIL_MODELS}
+                />
               </div>
             ))}
           </div>
@@ -195,28 +224,14 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
             <p className="text-xs text-gray-500">
               This model will synthesize the final response in Stage 3 based on all council deliberations.
             </p>
-            <Select
+            <ModelSelect
               value={chairmanModel}
               onValueChange={setChairmanModel}
+              availableModels={availableModels}
               disabled={loadingModels}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={loadingModels ? 'Loading models...' : 'Select a model'} />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredModels.length === 0 ? (
-                  <div className="px-2 py-1.5 text-sm text-gray-500">
-                    No models found
-                  </div>
-                ) : (
-                  filteredModels.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+              placeholder={loadingModels ? 'Loading models...' : 'Select a model'}
+              defaultModels={[CHAIRMAN_MODEL]}
+            />
           </div>
         </div>
 
