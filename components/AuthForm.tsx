@@ -43,7 +43,16 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
         });
 
         console.log('[AuthForm] Sign in result:', result);
+        console.log('[AuthForm] Result data:', result?.data);
+        console.log('[AuthForm] Result error:', result?.error);
+
+        // Check if there's an error in the result
+        if (result?.error) {
+          throw new Error(result.error.message || 'Sign in failed');
+        }
+
         toast.success('Signed in successfully!');
+        console.log('[AuthForm] Redirecting to home page...');
         // Reload to update session state
         window.location.href = '/';
       }
