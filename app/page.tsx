@@ -11,9 +11,6 @@ import type { Conversation, ConversationDetail, Message } from "@/types/conversa
 export default function Home() {
     const router = useRouter();
     const sessionResult = useSession();
-
-    console.log('[Home] useSession result:', sessionResult);
-
     const { data: session, isPending, error } = sessionResult;
 
     // All useState hooks must be called unconditionally
@@ -316,40 +313,21 @@ export default function Home() {
     useEffect(() => {
         if (!isMounted) return; // Skip during SSR
 
-        console.log('[Home] Session check:', {
-            session,
-            isPending,
-            error,
-            hasSession: !!session,
-            sessionUser: session?.user?.email
-        });
-
-        // Wait for the session check to complete
-        if (isPending) {
-            console.log('[Home] Still loading session...');
-            return;
-        }
+        if (isPending) return;
 
         if (!session) {
-            console.log('[Home] No session found, redirecting to /auth');
             router.push('/auth');
-        } else {
-            console.log('[Home] Session found! User:', session.user?.email);
         }
     }, [session, isPending, error, router, isMounted]);
 
     // Show loading during SSR or while session is loading
     if (!isMounted || isPending) {
-        console.log('[Home] Waiting... isMounted =', isMounted, 'isPending =', isPending);
         return <div className="flex h-screen items-center justify-center">Loading...</div>;
     }
 
     if (!session) {
-        console.log('[Home] No session, showing nothing while redirecting');
         return null;
     }
-
-    console.log('[Home] Rendering main app for user:', session.user?.email);
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-900">

@@ -34,28 +34,16 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
         setVerificationSent(true);
         setLoading(false);
       } else {
-        console.log('[AuthForm] Attempting sign in with email:', email);
-        console.log('[AuthForm] Current origin:', window.location.origin);
-
         const result = await signIn.email({
           email,
           password,
         });
 
-        console.log('[AuthForm] Sign in result:', result);
-        console.log('[AuthForm] Result data:', result?.data);
-        console.log('[AuthForm] Result error:', result?.error);
-
-        // Check if there's an error in the result
         if (result?.error) {
           throw new Error(result.error.message || 'Sign in failed');
         }
 
         toast.success('Signed in successfully!');
-        console.log('[AuthForm] Redirecting to home page...');
-
-        // Use router.push for client-side navigation to preserve session
-        // This is better than window.location which forces a full reload
         window.location.href = '/';
       }
     } catch (err) {
