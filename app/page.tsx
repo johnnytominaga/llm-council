@@ -10,7 +10,11 @@ import type { Conversation, ConversationDetail, Message } from "@/types/conversa
 
 export default function Home() {
     const router = useRouter();
-    const { data: session, isPending } = useSession();
+    const sessionResult = useSession();
+
+    console.log('[Home] useSession result:', sessionResult);
+
+    const { data: session, isPending, error } = sessionResult;
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<
         string | null
@@ -20,17 +24,25 @@ export default function Home() {
 
     // Auth guard
     useEffect(() => {
-        console.log('[Home] Session check:', { session, isPending });
+        console.log('[Home] Session check:', {
+            session,
+            isPending,
+            error,
+            hasSession: !!session,
+            sessionUser: session?.user?.email
+        });
 
         if (!isPending && !session) {
             console.log('[Home] No session found, redirecting to /auth');
             router.push('/auth');
+        } else if (session) {
+            console.log('[Home] Session found! User:', session.user?.email);
         }
-    }, [session, isPending, router]);
+    }, [session, isPending, error, router]);
 
     // Don't render until we know the auth state
     if (isPending) {
-        console.log('[Home] Waiting for session...');
+        console.log('[Home] Waiting for session... isPending =', isPending);
         return <div className="flex h-screen items-center justify-center">Loading...</div>;
     }
 
@@ -38,6 +50,8 @@ export default function Home() {
         console.log('[Home] No session, showing nothing while redirecting');
         return null;
     }
+
+    console.log('[Home] Rendering main app for user:', session.user?.email);
 
     const loadConversations = useCallback(async () => {
         try {
