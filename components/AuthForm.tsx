@@ -34,15 +34,21 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
         setVerificationSent(true);
         setLoading(false);
       } else {
-        await signIn.email({
+        console.log('[AuthForm] Attempting sign in with email:', email);
+        console.log('[AuthForm] Current origin:', window.location.origin);
+
+        const result = await signIn.email({
           email,
           password,
         });
+
+        console.log('[AuthForm] Sign in result:', result);
         toast.success('Signed in successfully!');
         // Reload to update session state
         window.location.href = '/';
       }
     } catch (err) {
+      console.error('[AuthForm] Sign in error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       toast.error(errorMessage);
       setLoading(false);
