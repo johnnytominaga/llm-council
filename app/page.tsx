@@ -1,18 +1,43 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import ChatInterface from "@/components/ChatInterface";
 import { api } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
 import type { Conversation, ConversationDetail, Message } from "@/types/conversation";
 
 export default function Home() {
+    const router = useRouter();
+    const { data: session, isPending } = useSession();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<
         string | null
     >(null);
     const [currentConversation, setCurrentConversation] = useState<ConversationDetail | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Auth guard
+    useEffect(() => {
+        console.log('[Home] Session check:', { session, isPending });
+
+        if (!isPending && !session) {
+            console.log('[Home] No session found, redirecting to /auth');
+            router.push('/auth');
+        }
+    }, [session, isPending, router]);
+
+    // Don't render until we know the auth state
+    if (isPending) {
+        console.log('[Home] Waiting for session...');
+        return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    }
+
+    if (!session) {
+        console.log('[Home] No session, showing nothing while redirecting');
+        return null;
+    }
 
     const loadConversations = useCallback(async () => {
         try {
