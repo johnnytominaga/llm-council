@@ -61,3 +61,4 @@ scripts/*.log
 *.swp
 *.swo
 *~
+sendgrid.env

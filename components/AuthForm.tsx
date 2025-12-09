@@ -17,6 +17,7 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,28 +30,58 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
           password,
           name,
         });
-        toast.success('Account created successfully!');
-        // After successful signup, automatically sign in
-        await signIn.email({
-          email,
-          password,
-        });
+        toast.success('Account created! Please check your email to verify your account.');
+        setVerificationSent(true);
+        setLoading(false);
       } else {
         await signIn.email({
           email,
           password,
         });
         toast.success('Signed in successfully!');
+        // Reload to update session state
+        window.location.href = '/';
       }
-
-      // Reload to update session state
-      window.location.href = '/';
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       toast.error(errorMessage);
       setLoading(false);
     }
   };
+
+  if (verificationSent) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Check Your Email</CardTitle>
+          <CardDescription>
+            We've sent a verification link to <strong>{email}</strong>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+            <p className="font-medium mb-2">Next steps:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Check your email inbox</li>
+              <li>Click the verification link</li>
+              <li>Sign in with your credentials</li>
+            </ol>
+          </div>
+          <div className="text-center">
+            <button
+              onClick={() => {
+                setVerificationSent(false);
+                onToggleMode();
+              }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Back to sign in
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -120,6 +151,17 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
           </Button>
+
+          {mode === 'signin' && (
+            <div className="text-center">
+              <a
+                href="/auth/forgot-password"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot your password?
+              </a>
+            </div>
+          )}
 
           <div className="text-center text-sm">
             <button

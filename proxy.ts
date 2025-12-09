@@ -11,7 +11,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/auth'];
+  const publicRoutes = ['/auth', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // API routes for auth should always be accessible
