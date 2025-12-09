@@ -71,15 +71,19 @@ function ModelSelect({ value, onValueChange, availableModels, disabled, placehol
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <div className="sticky top-0 bg-white p-2 border-b border-gray-200 z-10">
+        <div
+          className="sticky top-0 bg-white p-2 border-b border-gray-200 z-10"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <Input
             type="text"
             placeholder="Search models..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-8"
-            onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
+            autoFocus
           />
         </div>
         <div className="max-h-[300px] overflow-y-auto">
