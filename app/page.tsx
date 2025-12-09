@@ -15,6 +15,8 @@ export default function Home() {
     console.log('[Home] useSession result:', sessionResult);
 
     const { data: session, isPending, error } = sessionResult;
+
+    // All useState hooks must be called unconditionally
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentConversationId, setCurrentConversationId] = useState<
         string | null
@@ -22,43 +24,7 @@ export default function Home() {
     const [currentConversation, setCurrentConversation] = useState<ConversationDetail | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Auth guard - wait for pending to complete before redirecting
-    useEffect(() => {
-        console.log('[Home] Session check:', {
-            session,
-            isPending,
-            error,
-            hasSession: !!session,
-            sessionUser: session?.user?.email
-        });
-
-        // Wait for the session check to complete
-        if (isPending) {
-            console.log('[Home] Still loading session...');
-            return;
-        }
-
-        if (!session) {
-            console.log('[Home] No session found, redirecting to /auth');
-            router.push('/auth');
-        } else {
-            console.log('[Home] Session found! User:', session.user?.email);
-        }
-    }, [session, isPending, error, router]);
-
-    // Don't render until we know the auth state
-    if (isPending) {
-        console.log('[Home] Waiting for session... isPending =', isPending);
-        return <div className="flex h-screen items-center justify-center">Loading...</div>;
-    }
-
-    if (!session) {
-        console.log('[Home] No session, showing nothing while redirecting');
-        return null;
-    }
-
-    console.log('[Home] Rendering main app for user:', session.user?.email);
-
+    // All useCallback hooks must be called unconditionally
     const loadConversations = useCallback(async () => {
         try {
             const convs = await api.listConversations();
@@ -338,6 +304,43 @@ export default function Home() {
             setIsLoading(false);
         }
     };
+
+    // Auth guard - useEffect to redirect if no session
+    useEffect(() => {
+        console.log('[Home] Session check:', {
+            session,
+            isPending,
+            error,
+            hasSession: !!session,
+            sessionUser: session?.user?.email
+        });
+
+        // Wait for the session check to complete
+        if (isPending) {
+            console.log('[Home] Still loading session...');
+            return;
+        }
+
+        if (!session) {
+            console.log('[Home] No session found, redirecting to /auth');
+            router.push('/auth');
+        } else {
+            console.log('[Home] Session found! User:', session.user?.email);
+        }
+    }, [session, isPending, error, router]);
+
+    // Don't render until we know the auth state
+    if (isPending) {
+        console.log('[Home] Waiting for session... isPending =', isPending);
+        return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    }
+
+    if (!session) {
+        console.log('[Home] No session, showing nothing while redirecting');
+        return null;
+    }
+
+    console.log('[Home] Rendering main app for user:', session.user?.email);
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-900">
