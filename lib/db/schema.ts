@@ -75,3 +75,15 @@ export const message = sqliteTable('message', {
   stage3: text('stage3'), // JSON string for stage3 data
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
+
+export const userSettings = sqliteTable('userSettings', {
+  id: text('id').primaryKey(),
+  userId: text('userId')
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  councilModels: text('councilModels').notNull(), // JSON array of 4 model IDs
+  chairmanModel: text('chairmanModel').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});

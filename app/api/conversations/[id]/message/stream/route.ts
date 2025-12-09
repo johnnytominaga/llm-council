@@ -18,11 +18,37 @@ import {
   Stage1Result,
 } from '@/lib/council';
 import { getSession } from '@/lib/auth-server';
+import { db } from '@/lib/db';
+import { userSettings } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { COUNCIL_MODELS, CHAIRMAN_MODEL } from '@/lib/config';
 
 // Set maximum duration for Vercel Pro/Enterprise plans
 // Hobby: 10s (default), Pro: 60s, Enterprise: 900s
 // Set to 300s (5 minutes) to allow for slower paid models
 export const maxDuration = 300;
+
+/**
+ * Get models for a user (from settings or config defaults).
+ */
+async function getUserModels(userId: string): Promise<{ councilModels: string[]; chairmanModel: string }> {
+  const settings = await db.query.userSettings.findFirst({
+    where: eq(userSettings.userId, userId),
+  });
+
+  if (settings) {
+    return {
+      councilModels: JSON.parse(settings.councilModels),
+      chairmanModel: settings.chairmanModel,
+    };
+  }
+
+  // Return defaults from config
+  return {
+    councilModels: COUNCIL_MODELS,
+    chairmanModel: CHAIRMAN_MODEL,
+  };
+}
 
 export async function POST(
   request: Request,
@@ -38,6 +64,9 @@ export async function POST(
         { status: 401 }
       );
     }
+
+    // Get user's model settings
+    const { councilModels, chairmanModel } = await getUserModels(userId);
 
     const { id } = await params;
     const { content } = await request.json();
@@ -73,6 +102,7 @@ export async function POST(
           sendEvent('stage1_start', {});
           const stage1Results = await stage1CollectResponsesStream(
             content,
+            councilModels,
             (model, chunk) => {
               // Accumulate chunks for each model
               if (!stage1Partial[model]) {
@@ -95,6 +125,7 @@ export async function POST(
           const [stage2Results, labelToModel] = await stage2CollectRankingsStream(
             content,
             stage1Results,
+            councilModels,
             (model, chunk) => {
               // Accumulate chunks for each model
               if (!stage2Partial[model]) {
@@ -128,6 +159,7 @@ export async function POST(
             content,
             stage1Results,
             stage2Results,
+            chairmanModel,
             (chunk) => {
               // Accumulate chunks
               stage3Partial += chunk;

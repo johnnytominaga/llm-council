@@ -392,6 +392,7 @@ export interface StreamCallbacks {
 
 export async function stage1CollectResponsesStream(
   userQuery: string,
+  councilModels: string[],
   onChunk: (model: string, chunk: string) => void
 ): Promise<Stage1Result[]> {
   /**
@@ -401,7 +402,7 @@ export async function stage1CollectResponsesStream(
   const messages: Message[] = [{ role: 'user', content: userQuery }];
 
   // Query all models in parallel with streaming
-  const promises = COUNCIL_MODELS.map(async (model) => {
+  const promises = councilModels.map(async (model) => {
     const response = await queryModelStream(model, messages, (streamChunk) => {
       if (!streamChunk.done && streamChunk.content) {
         onChunk(model, streamChunk.content);
@@ -426,6 +427,7 @@ export async function stage1CollectResponsesStream(
 export async function stage2CollectRankingsStream(
   userQuery: string,
   stage1Results: Stage1Result[],
+  councilModels: string[],
   onChunk: (model: string, chunk: string) => void
 ): Promise<[Stage2Result[], Record<string, string>]> {
   /**
@@ -468,7 +470,7 @@ Remember: Evaluate objectively based on accuracy, completeness, clarity, and use
   const messages: Message[] = [{ role: 'user', content: rankingPrompt }];
 
   // Query all models in parallel with streaming
-  const promises = COUNCIL_MODELS.map(async (model) => {
+  const promises = councilModels.map(async (model) => {
     const response = await queryModelStream(model, messages, (streamChunk) => {
       if (!streamChunk.done && streamChunk.content) {
         onChunk(model, streamChunk.content);
@@ -497,6 +499,7 @@ export async function stage3SynthesizeFinalStream(
   userQuery: string,
   stage1Results: Stage1Result[],
   stage2Results: Stage2Result[],
+  chairmanModel: string,
   onChunk: (chunk: string) => void
 ): Promise<Stage3Result> {
   /**
@@ -533,7 +536,7 @@ Important: DO NOT simply summarize. Create a cohesive, authoritative response th
 
   const messages: Message[] = [{ role: 'user', content: synthesisPrompt }];
 
-  const response = await queryModelStream(CHAIRMAN_MODEL, messages, (streamChunk) => {
+  const response = await queryModelStream(chairmanModel, messages, (streamChunk) => {
     if (!streamChunk.done && streamChunk.content) {
       onChunk(streamChunk.content);
     }
@@ -541,13 +544,13 @@ Important: DO NOT simply summarize. Create a cohesive, authoritative response th
 
   if (response === null) {
     return {
-      model: CHAIRMAN_MODEL,
+      model: chairmanModel,
       response: 'Error: Failed to synthesize final answer.',
     };
   }
 
   return {
-    model: CHAIRMAN_MODEL,
+    model: chairmanModel,
     response: response.content || '',
   };
 }

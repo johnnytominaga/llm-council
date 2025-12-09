@@ -148,4 +148,48 @@ export const api = {
       }
     }
   },
+
+  /**
+   * Get user settings.
+   */
+  async getSettings() {
+    const response = await fetch(`${API_BASE}/api/settings`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Update user settings.
+   */
+  async updateSettings(councilModels: string[], chairmanModel: string) {
+    const response = await fetch(`${API_BASE}/api/settings`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ councilModels, chairmanModel }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update settings');
+    }
+    return response.json();
+  },
+
+  /**
+   * Fetch available models from OpenRouter.
+   */
+  async getAvailableModels() {
+    const response = await fetch(`${API_BASE}/api/models`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to get available models');
+    }
+    return response.json();
+  },
 };
