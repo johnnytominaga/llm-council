@@ -12,16 +12,24 @@ import type { Session, User } from './auth';
  */
 export async function getSession(): Promise<{ session: Session; user: User } | null> {
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get('better-auth.session_token')?.value;
+  // In production (HTTPS), BetterAuth adds __Secure- prefix to cookie names
+  const sessionToken =
+    cookieStore.get('__Secure-better-auth.session_token')?.value ||
+    cookieStore.get('better-auth.session_token')?.value;
 
   if (!sessionToken) {
     return null;
   }
 
   try {
+    // Use the correct cookie name based on which one we found
+    const cookieName = cookieStore.get('__Secure-better-auth.session_token')
+      ? '__Secure-better-auth.session_token'
+      : 'better-auth.session_token';
+
     const session = await auth.api.getSession({
       headers: {
-        cookie: `better-auth.session_token=${sessionToken}`,
+        cookie: `${cookieName}=${sessionToken}`,
       },
     });
 
