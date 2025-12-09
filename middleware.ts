@@ -6,8 +6,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
-  const sessionToken = request.cookies.get('better-auth.session_token')?.value;
+export function middleware(request: NextRequest) {
+  // In production (HTTPS), BetterAuth adds __Secure- prefix to cookie names
+  const sessionToken =
+    request.cookies.get('__Secure-better-auth.session_token')?.value ||
+    request.cookies.get('better-auth.session_token')?.value;
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication

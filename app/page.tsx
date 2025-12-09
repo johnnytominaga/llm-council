@@ -305,8 +305,17 @@ export default function Home() {
         }
     };
 
-    // Auth guard - useEffect to redirect if no session
+    // Track if we're in the browser (not SSR)
+    const [isMounted, setIsMounted] = useState(false);
+
     useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    // Auth guard - only runs in browser, not during SSR
+    useEffect(() => {
+        if (!isMounted) return; // Skip during SSR
+
         console.log('[Home] Session check:', {
             session,
             isPending,
@@ -327,11 +336,11 @@ export default function Home() {
         } else {
             console.log('[Home] Session found! User:', session.user?.email);
         }
-    }, [session, isPending, error, router]);
+    }, [session, isPending, error, router, isMounted]);
 
-    // Don't render until we know the auth state
-    if (isPending) {
-        console.log('[Home] Waiting for session... isPending =', isPending);
+    // Show loading during SSR or while session is loading
+    if (!isMounted || isPending) {
+        console.log('[Home] Waiting... isMounted =', isMounted, 'isPending =', isPending);
         return <div className="flex h-screen items-center justify-center">Loading...</div>;
     }
 
