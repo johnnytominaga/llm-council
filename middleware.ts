@@ -1,12 +1,12 @@
 /**
- * Next.js proxy for authentication.
+ * Next.js middleware for authentication.
  * Protects routes that require authentication.
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   // In production (HTTPS), BetterAuth adds __Secure- prefix to cookie names
   const sessionToken =
     request.cookies.get('__Secure-better-auth.session_token')?.value ||
