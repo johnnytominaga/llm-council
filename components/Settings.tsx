@@ -61,6 +61,7 @@ function ModelSelect({ value, onValueChange, availableModels, disabled, placehol
   // Reset search when dropdown closes
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchTerm('');
     }
   }, [isOpen]);
