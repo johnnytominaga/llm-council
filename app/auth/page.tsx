@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AuthForm from "@/components/AuthForm";
+import Logo from "@/components/Logo";
 
 export default function AuthPage() {
     const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -11,13 +12,7 @@ export default function AuthPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <div className="mb-8 flex justify-center">
-                        <img
-                            src="/kilonova-logo.svg"
-                            alt="Kilonova Logo"
-                            width={200}
-                            height={53}
-                            className="h-auto"
-                        />
+                        <Logo />
                     </div>
 
                     <h1 className="text-3xl font-bold text-gray-900">

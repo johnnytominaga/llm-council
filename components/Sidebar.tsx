@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Drawer,
-    DrawerClose,
+    // DrawerClose,
     DrawerContent,
     DrawerDescription,
     DrawerHeader,
@@ -14,6 +14,7 @@ import {
 import Settings from "@/components/Settings";
 import type { Conversation } from "@/types/conversation";
 import { useSession, signOut } from "@/lib/auth-client";
+import Logo from "@/components/Logo";
 
 interface SidebarProps {
     conversations: Conversation[];
@@ -86,13 +87,7 @@ export default function Sidebar({
         <>
             <div className="p-4 border-b border-gray-200">
                 <div className="mb-4">
-                    <img
-                        src="/kilonova-logo.svg"
-                        alt="Kilonova Logo"
-                        width={200}
-                        height={53}
-                        className="h-auto"
-                    />
+                    <Logo />
                 </div>
                 {/* <h1 className="text-lg mb-3 text-gray-900 font-medium">
                     LLM Council
