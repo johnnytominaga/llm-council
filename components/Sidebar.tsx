@@ -14,6 +14,8 @@ import {
 import Settings from "@/components/Settings";
 import type { Conversation } from "@/types/conversation";
 import { useSession, signOut } from "@/lib/auth-client";
+import { Link } from "lucide-react";
+import Image from "next/image";
 
 interface SidebarProps {
     conversations: Conversation[];
@@ -85,9 +87,18 @@ export default function Sidebar({
     const sidebarContent = (
         <>
             <div className="p-4 border-b border-gray-200">
-                <h1 className="text-lg mb-3 text-gray-900 font-medium">
+                <div className="mb-4">
+                    <Image
+                        src="/kilonova-logo.svg"
+                        width={200}
+                        height={53}
+                        alt="Kilonova Logo"
+                    />
+                </div>
+                {/* <h1 className="text-lg mb-3 text-gray-900 font-medium">
                     LLM Council
-                </h1>
+                </h1> */}
+
                 <Button
                     className="w-full"
                     onClick={() => {
