@@ -127,21 +127,6 @@ export async function POST(
         }
 
         try {
-          let processedContent = content;
-
-          // Preprocessing (if enabled) - works for both single and council modes
-          if (preprocessModel) {
-            sendEvent('preprocessing_start', { model: preprocessModel });
-            processedContent = await preprocessConversationHistory(
-              id,
-              userId,
-              preprocessModel,
-              content,
-              allAttachments
-            );
-            sendEvent('preprocessing_complete', { enhanced: processedContent !== content });
-          }
-
           if (effectiveMode === 'single') {
             // ========== SINGLE MODEL MODE ==========
             let singlePartial = '';
@@ -149,7 +134,7 @@ export async function POST(
             sendEvent('single_start', { model: singleModel });
             const response = await queryModelStream(
               singleModel,
-              [{ role: 'user', content: buildMessageContent(processedContent, allAttachments) }],
+              [{ role: 'user', content: buildMessageContent(content, allAttachments) }],
               (streamChunk) => {
                 if (!streamChunk.done && streamChunk.content) {
                   singlePartial += streamChunk.content;
@@ -187,6 +172,20 @@ export async function POST(
             controller.close();
           } else {
             // ========== COUNCIL MODE ==========
+            // Preprocessing (if enabled) - only for council mode
+            let processedContent = content;
+            if (preprocessModel) {
+              sendEvent('preprocessing_start', { model: preprocessModel });
+              processedContent = await preprocessConversationHistory(
+                id,
+                userId,
+                preprocessModel,
+                content,
+                allAttachments
+              );
+              sendEvent('preprocessing_complete', { enhanced: processedContent !== content });
+            }
+
             // Initialize partial results for streaming
             const stage1Partial: Record<string, string> = {};
             const stage2Partial: Record<string, string> = {};
