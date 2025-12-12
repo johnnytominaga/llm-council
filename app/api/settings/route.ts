@@ -31,6 +31,9 @@ export async function GET() {
       return NextResponse.json({
         councilModels: JSON.parse(settings.councilModels),
         chairmanModel: settings.chairmanModel,
+        mode: settings.mode || 'single',
+        singleModel: settings.singleModel || COUNCIL_MODELS[0],
+        preprocessModel: settings.preprocessModel || null,
       });
     }
 
@@ -38,6 +41,9 @@ export async function GET() {
     return NextResponse.json({
       councilModels: COUNCIL_MODELS,
       chairmanModel: CHAIRMAN_MODEL,
+      mode: 'single',
+      singleModel: COUNCIL_MODELS[0],
+      preprocessModel: null,
     });
   } catch (error) {
     console.error('Error getting settings:', error);
@@ -61,19 +67,36 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { councilModels, chairmanModel } = body;
+    const { councilModels, chairmanModel, mode, singleModel, preprocessModel } = body;
 
-    // Validate input
-    if (!Array.isArray(councilModels) || councilModels.length !== 4) {
-      return NextResponse.json(
-        { error: 'Council models must be an array of 4 model IDs' },
-        { status: 400 }
-      );
-    }
+    // Default to single mode if not specified
+    const effectiveMode = mode || 'single';
 
-    if (!chairmanModel || typeof chairmanModel !== 'string') {
+    // Validate based on mode
+    if (effectiveMode === 'single') {
+      if (!singleModel || typeof singleModel !== 'string') {
+        return NextResponse.json(
+          { error: 'Single model is required for single mode' },
+          { status: 400 }
+        );
+      }
+    } else if (effectiveMode === 'council') {
+      if (!Array.isArray(councilModels) || councilModels.length !== 4) {
+        return NextResponse.json(
+          { error: 'Council models must be an array of 4 model IDs' },
+          { status: 400 }
+        );
+      }
+
+      if (!chairmanModel || typeof chairmanModel !== 'string') {
+        return NextResponse.json(
+          { error: 'Chairman model is required for council mode' },
+          { status: 400 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: 'Chairman model is required' },
+        { error: 'Mode must be either "single" or "council"' },
         { status: 400 }
       );
     }
@@ -88,24 +111,33 @@ export async function PUT(request: NextRequest) {
       await db
         .update(userSettings)
         .set({
-          councilModels: JSON.stringify(councilModels),
-          chairmanModel,
+          councilModels: effectiveMode === 'council' ? JSON.stringify(councilModels) : existing.councilModels,
+          chairmanModel: effectiveMode === 'council' ? chairmanModel : existing.chairmanModel,
+          mode: effectiveMode,
+          singleModel: effectiveMode === 'single' ? singleModel : existing.singleModel,
+          preprocessModel: preprocessModel || null,
           updatedAt: new Date(),
         })
         .where(eq(userSettings.userId, userId));
     } else {
-      // Create new settings
+      // Create new settings - use defaults for fields not provided
       await db.insert(userSettings).values({
         id: randomUUID(),
         userId,
-        councilModels: JSON.stringify(councilModels),
-        chairmanModel,
+        councilModels: effectiveMode === 'council' ? JSON.stringify(councilModels) : JSON.stringify(COUNCIL_MODELS),
+        chairmanModel: effectiveMode === 'council' ? chairmanModel : CHAIRMAN_MODEL,
+        mode: effectiveMode,
+        singleModel: effectiveMode === 'single' ? singleModel : COUNCIL_MODELS[0],
+        preprocessModel: preprocessModel || null,
       });
     }
 
     return NextResponse.json({
-      councilModels,
-      chairmanModel,
+      councilModels: effectiveMode === 'council' ? councilModels : JSON.parse(existing?.councilModels || JSON.stringify(COUNCIL_MODELS)),
+      chairmanModel: effectiveMode === 'council' ? chairmanModel : (existing?.chairmanModel || CHAIRMAN_MODEL),
+      mode: effectiveMode,
+      singleModel: effectiveMode === 'single' ? singleModel : (existing?.singleModel || COUNCIL_MODELS[0]),
+      preprocessModel: preprocessModel || null,
     });
   } catch (error) {
     console.error('Error updating settings:', error);

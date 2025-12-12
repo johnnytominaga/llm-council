@@ -96,13 +96,15 @@ export const api = {
    * @param content - The message content
    * @param onEvent - Callback function for each event: (eventType, data) => void
    * @param attachments - Optional file attachments
+   * @param useCouncil - Whether to use council mode (overrides user settings)
    * @returns Promise<void>
    */
   async sendMessageStream(
     conversationId: string,
     content: string,
     onEvent: (eventType: string, event: any) => void,
-    attachments?: any[]
+    attachments?: any[],
+    useCouncil?: boolean
   ) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
@@ -112,7 +114,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content, attachments }),
+        body: JSON.stringify({ content, attachments, useCouncil }),
       }
     );
 
@@ -184,14 +186,20 @@ export const api = {
   /**
    * Update user settings.
    */
-  async updateSettings(councilModels: string[], chairmanModel: string) {
+  async updateSettings(settings: {
+    mode?: 'single' | 'council';
+    singleModel?: string;
+    councilModels?: string[];
+    chairmanModel?: string;
+    preprocessModel?: string | null;
+  }) {
     const response = await fetch(`${API_BASE}/api/settings`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ councilModels, chairmanModel }),
+      body: JSON.stringify(settings),
     });
     if (!response.ok) {
       throw new Error('Failed to update settings');
@@ -208,6 +216,94 @@ export const api = {
     });
     if (!response.ok) {
       throw new Error('Failed to get available models');
+    }
+    return response.json();
+  },
+
+  /**
+   * Get all attachments for a conversation.
+   */
+  async getConversationAttachments(conversationId: string) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/attachments`,
+      {
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to get conversation attachments');
+    }
+    return response.json();
+  },
+
+  /**
+   * Add an attachment to a conversation's pool.
+   */
+  async addConversationAttachment(
+    conversationId: string,
+    attachment: {
+      key: string;
+      url: string;
+      filename: string;
+      contentType: string;
+      size: number;
+    }
+  ) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/attachments`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attachment),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to add conversation attachment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete an attachment from a conversation and S3.
+   */
+  async deleteConversationAttachment(
+    conversationId: string,
+    attachmentId: string
+  ) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/attachments`,
+      {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ attachmentId }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete conversation attachment');
+    }
+    return response.json();
+  },
+
+  /**
+   * Delete an uploaded file from S3.
+   */
+  async deleteUploadedFile(key: string) {
+    const response = await fetch(`${API_BASE}/api/upload`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ key }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete uploaded file');
     }
     return response.json();
   },

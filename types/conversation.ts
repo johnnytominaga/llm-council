@@ -10,6 +10,12 @@ export interface Attachment {
     size: number;
 }
 
+export interface ConversationAttachment extends Attachment {
+    id: string;
+    conversationId: string;
+    createdAt: string;
+}
+
 export interface Message {
     role: "user" | "assistant";
     content?: string;
@@ -22,15 +28,20 @@ export interface Message {
     stage3?: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata?: any;
+    // Single model response (for single mode)
+    singleResponse?: { model: string; response: string };
     streaming?: {
         stage1?: Record<string, string>;
         stage2?: Record<string, string>;
         stage3?: string;
+        single?: string; // Single model streaming
     };
     loading?: {
         stage1?: boolean;
         stage2?: boolean;
         stage3?: boolean;
+        preprocessing?: boolean; // Preprocessing indicator
+        single?: boolean; // Single model loading
     };
 }
 

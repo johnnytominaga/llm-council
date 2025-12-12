@@ -4,7 +4,7 @@
 
 import { eq, desc } from 'drizzle-orm';
 import { db } from './db';
-import { conversation, message } from './db/schema';
+import { conversation, message, conversationAttachment } from './db/schema';
 import { nanoid } from 'nanoid';
 
 export interface Conversation {
@@ -282,4 +282,154 @@ export async function deleteConversation(conversationId: string, userId: string)
 
   // Delete the conversation
   await db.delete(conversation).where(eq(conversation.id, conversationId));
+}
+
+export interface ConversationAttachment {
+  id: string;
+  conversationId: string;
+  key: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+}
+
+export async function addConversationAttachment(
+  conversationId: string,
+  attachment: {
+    key: string;
+    url: string;
+    filename: string;
+    contentType: string;
+    size: number;
+  },
+  userId: string
+): Promise<ConversationAttachment> {
+  /**
+   * Add an attachment to a conversation's pool.
+   *
+   * Args:
+   *   conversationId: Conversation identifier
+   *   attachment: Attachment data (key, url, filename, contentType, size)
+   *   userId: User ID to scope conversation to user
+   *
+   * Returns:
+   *   Created attachment object
+   */
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
+    throw new Error(`Conversation ${conversationId} not found`);
+  }
+
+  const now = new Date();
+  const result = await db.insert(conversationAttachment).values({
+    id: nanoid(),
+    conversationId,
+    key: attachment.key,
+    url: attachment.url,
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    size: attachment.size,
+    createdAt: now,
+  }).returning();
+
+  return {
+    id: result[0].id,
+    conversationId: result[0].conversationId,
+    key: result[0].key,
+    url: result[0].url,
+    filename: result[0].filename,
+    contentType: result[0].contentType,
+    size: result[0].size,
+    createdAt: result[0].createdAt.toISOString(),
+  };
+}
+
+export async function getConversationAttachments(
+  conversationId: string,
+  userId: string
+): Promise<ConversationAttachment[]> {
+  /**
+   * Get all attachments for a conversation.
+   *
+   * Args:
+   *   conversationId: Conversation identifier
+   *   userId: User ID to scope conversation to user
+   *
+   * Returns:
+   *   List of attachment objects
+   */
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
+    throw new Error(`Conversation ${conversationId} not found`);
+  }
+
+  const attachments = await db.query.conversationAttachment.findMany({
+    where: eq(conversationAttachment.conversationId, conversationId),
+    orderBy: desc(conversationAttachment.createdAt),
+  });
+
+  return attachments.map(att => ({
+    id: att.id,
+    conversationId: att.conversationId,
+    key: att.key,
+    url: att.url,
+    filename: att.filename,
+    contentType: att.contentType,
+    size: att.size,
+    createdAt: att.createdAt.toISOString(),
+  }));
+}
+
+export async function deleteConversationAttachment(
+  attachmentId: string,
+  conversationId: string,
+  userId: string
+): Promise<string> {
+  /**
+   * Delete an attachment from a conversation's pool.
+   *
+   * Args:
+   *   attachmentId: Attachment identifier
+   *   conversationId: Conversation identifier
+   *   userId: User ID to scope conversation to user
+   *
+   * Returns:
+   *   S3 key of the deleted attachment (for S3 cleanup)
+   */
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
+    throw new Error(`Conversation ${conversationId} not found`);
+  }
+
+  const attachment = await db.query.conversationAttachment.findFirst({
+    where: (attachments, { eq, and }) =>
+      and(
+        eq(attachments.id, attachmentId),
+        eq(attachments.conversationId, conversationId)
+      ),
+  });
+
+  if (!attachment) {
+    throw new Error(`Attachment ${attachmentId} not found in conversation ${conversationId}`);
+  }
+
+  await db
+    .delete(conversationAttachment)
+    .where(eq(conversationAttachment.id, attachmentId));
+
+  return attachment.key;
 }

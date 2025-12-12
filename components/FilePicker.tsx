@@ -1,19 +1,31 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { api } from '@/lib/api';
 import type { Attachment } from '@/types/conversation';
 
 interface FilePickerProps {
   onFilesSelected: (files: Attachment[]) => void;
   maxFiles?: number;
+  attachments?: Attachment[]; // Optional: parent can control attachments state
 }
 
-export default function FilePicker({ onFilesSelected, maxFiles = 5 }: FilePickerProps) {
-  const [selectedFiles, setSelectedFiles] = useState<Attachment[]>([]);
+export default function FilePicker({ onFilesSelected, maxFiles = 5, attachments }: FilePickerProps) {
+  const [localFiles, setLocalFiles] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use attachments prop if provided, otherwise use local state
+  const selectedFiles = attachments !== undefined ? attachments : localFiles;
+
+  // Sync local state with parent when attachments prop changes
+  useEffect(() => {
+    if (attachments !== undefined) {
+      setLocalFiles(attachments);
+    }
+  }, [attachments]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -51,7 +63,7 @@ export default function FilePicker({ onFilesSelected, maxFiles = 5 }: FilePicker
       }
 
       const newFiles = [...selectedFiles, ...uploadedFiles];
-      setSelectedFiles(newFiles);
+      setLocalFiles(newFiles);
       onFilesSelected(newFiles);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload files');
@@ -64,10 +76,22 @@ export default function FilePicker({ onFilesSelected, maxFiles = 5 }: FilePicker
     }
   };
 
-  const handleRemoveFile = (index: number) => {
+  const handleRemoveFile = async (index: number) => {
+    const fileToRemove = selectedFiles[index];
+
+    // Optimistically update UI (remove from state first)
     const newFiles = selectedFiles.filter((_, i) => i !== index);
-    setSelectedFiles(newFiles);
+    setLocalFiles(newFiles);
     onFilesSelected(newFiles);
+
+    // Try to delete from S3 in background
+    try {
+      await api.deleteUploadedFile(fileToRemove.key);
+    } catch (err) {
+      // Log error but don't revert UI change
+      // The file is already removed from the UI, and S3 cleanup failure is not critical
+      console.error('Failed to delete file from S3:', err);
+    }
   };
 
   const formatFileSize = (bytes: number): string => {

@@ -4,11 +4,12 @@
 
 import { queryModelsParallel, queryModel, queryModelStream, Message, MessageContent, StreamChunk } from './openrouter';
 import { COUNCIL_MODELS, CHAIRMAN_MODEL } from './config';
+import { getConversation, getConversationAttachments } from './storage-adapter';
 
 /**
  * Helper function to build message content with attachments for OpenRouter.
  */
-function buildMessageContent(text: string, attachments?: any[]): MessageContent {
+export function buildMessageContent(text: string, attachments?: any[]): MessageContent {
   if (!attachments || attachments.length === 0) {
     return text;
   }
@@ -377,6 +378,115 @@ Title:`;
   }
 
   return title;
+}
+
+export async function preprocessConversationHistory(
+  conversationId: string,
+  userId: string,
+  preprocessModel: string,
+  currentMessage: string,
+  attachments?: any[]
+): Promise<string> {
+  /**
+   * Preprocess conversation history and attachments before sending to council.
+   * Creates a comprehensive context summary using a preprocessing model.
+   *
+   * Args:
+   *   conversationId: Conversation identifier
+   *   userId: User ID to scope conversation to user
+   *   preprocessModel: Model ID to use for preprocessing
+   *   currentMessage: The current user message
+   *   attachments: Optional current message attachments
+   *
+   * Returns:
+   *   Enhanced message with conversation context, or original message if preprocessing fails
+   */
+  try {
+    // Load full conversation history
+    const conversation = await getConversation(conversationId, userId);
+
+    if (!conversation) {
+      console.warn('Conversation not found for preprocessing, using original message');
+      return currentMessage;
+    }
+
+    // Load conversation-level attachments
+    const conversationAttachments = await getConversationAttachments(conversationId, userId);
+
+    // Build comprehensive context prompt
+    let contextPrompt = `You are a preprocessing assistant. Your task is to analyze the entire conversation history and create a comprehensive context summary that will help AI models provide better responses.
+
+CONVERSATION HISTORY:
+`;
+
+    // Add each message in the conversation
+    for (const msg of conversation.messages) {
+      if (msg.role === 'user') {
+        contextPrompt += `\nUser: ${msg.content || ''}`;
+        if (msg.attachments && msg.attachments.length > 0) {
+          contextPrompt += `\n[User included ${msg.attachments.length} attachment(s): ${msg.attachments.map((a: any) => a.filename).join(', ')}]`;
+        }
+      } else if (msg.role === 'assistant') {
+        // For assistant messages, use stage3 if available (final synthesis), otherwise use stage1
+        if (msg.stage3) {
+          contextPrompt += `\nAssistant: ${msg.stage3.response || ''}`;
+        } else if (msg.stage1 && msg.stage1.length > 0) {
+          contextPrompt += `\nAssistant: ${msg.stage1[0].response || ''}`;
+        }
+      }
+    }
+
+    // Add conversation-level attachments info
+    if (conversationAttachments.length > 0) {
+      contextPrompt += `\n\nCONVERSATION ATTACHMENTS:
+The user has uploaded ${conversationAttachments.length} file(s) for this conversation:
+${conversationAttachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}
+`;
+    }
+
+    // Add current message attachments info
+    if (attachments && attachments.length > 0) {
+      contextPrompt += `\n\nCURRENT MESSAGE ATTACHMENTS:
+${attachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}
+`;
+    }
+
+    contextPrompt += `\n\nCURRENT USER MESSAGE:
+${currentMessage}
+
+YOUR TASK:
+Provide a comprehensive summary that:
+1. Identifies key topics and themes from the conversation history
+2. Notes any relevant information from previous messages that helps understand the current question
+3. Highlights important context from attachments if relevant
+4. Creates an enhanced version of the current message that includes necessary context
+
+Output ONLY the enhanced message that incorporates relevant context. Do not add meta-commentary or explanations.`;
+
+    // Query preprocessing model with 60s timeout
+    const messages: Message[] = [{ role: 'user', content: contextPrompt }];
+    const response = await queryModel(preprocessModel, messages, 60000);
+
+    if (response === null) {
+      console.warn('Preprocessing failed, using original message');
+      return currentMessage;
+    }
+
+    const enhancedMessage = response.content || currentMessage;
+
+    console.log('Preprocessing successful:', {
+      originalLength: currentMessage.length,
+      enhancedLength: enhancedMessage.length,
+      historyMessages: conversation.messages.length,
+      conversationAttachments: conversationAttachments.length,
+    });
+
+    return enhancedMessage;
+  } catch (error) {
+    console.error('Error during preprocessing:', error);
+    // Fallback to original message on any error
+    return currentMessage;
+  }
 }
 
 export async function runFullCouncil(

@@ -12,9 +12,12 @@ import {
   addAssistantMessage as dbAddAssistantMessage,
   updateConversationTitle as dbUpdateConversationTitle,
   deleteConversation as dbDeleteConversation,
+  addConversationAttachment as dbAddConversationAttachment,
+  getConversationAttachments as dbGetConversationAttachments,
+  deleteConversationAttachment as dbDeleteConversationAttachment,
 } from './storage';
 
-import type { Conversation, ConversationMetadata } from './storage';
+import type { Conversation, ConversationMetadata, ConversationAttachment } from './storage';
 
 console.log('Using Turso database storage');
 
@@ -26,5 +29,8 @@ export const addUserMessage = dbAddUserMessage;
 export const addAssistantMessage = dbAddAssistantMessage;
 export const updateConversationTitle = dbUpdateConversationTitle;
 export const deleteConversation = dbDeleteConversation;
+export const addConversationAttachment = dbAddConversationAttachment;
+export const getConversationAttachments = dbGetConversationAttachments;
+export const deleteConversationAttachment = dbDeleteConversationAttachment;
 
-export type { Conversation, ConversationMetadata };
+export type { Conversation, ConversationMetadata, ConversationAttachment };

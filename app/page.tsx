@@ -122,7 +122,7 @@ export default function Home() {
     }
   };
 
-  const handleSendMessage = async (content: string, attachments?: Attachment[]) => {
+  const handleSendMessage = async (content: string, attachments?: Attachment[], useCouncil?: boolean) => {
     if (!currentConversationId) return;
 
     setIsLoading(true);
@@ -145,15 +145,19 @@ export default function Home() {
         stage2: undefined,
         stage3: undefined,
         metadata: undefined,
+        singleResponse: undefined,
         streaming: {
           stage1: {} as Record<string, string>,
           stage2: {} as Record<string, string>,
           stage3: "",
+          single: "",
         },
         loading: {
           stage1: false,
           stage2: false,
           stage3: false,
+          preprocessing: false,
+          single: false,
         },
       };
 
@@ -173,6 +177,70 @@ export default function Home() {
         content,
         (eventType, event) => {
           switch (eventType) {
+            case "preprocessing_start":
+              setCurrentConversation((prev) => {
+                if (!prev) return null;
+                const messages = [...prev.messages];
+                const lastMsg = messages[messages.length - 1];
+                if (lastMsg.loading) {
+                  lastMsg.loading.preprocessing = true;
+                }
+                return { ...prev, messages };
+              });
+              break;
+
+            case "preprocessing_complete":
+              setCurrentConversation((prev) => {
+                if (!prev) return null;
+                const messages = [...prev.messages];
+                const lastMsg = messages[messages.length - 1];
+                if (lastMsg.loading) {
+                  lastMsg.loading.preprocessing = false;
+                }
+                return { ...prev, messages };
+              });
+              break;
+
+            case "single_start":
+              setCurrentConversation((prev) => {
+                if (!prev) return null;
+                const messages = [...prev.messages];
+                const lastMsg = messages[messages.length - 1];
+                if (lastMsg.loading) {
+                  lastMsg.loading.single = true;
+                }
+                return { ...prev, messages };
+              });
+              break;
+
+            case "single_chunk":
+              setCurrentConversation((prev) => {
+                if (!prev) return null;
+                const messages = [...prev.messages];
+                const lastMsg = messages[messages.length - 1];
+                if (lastMsg.streaming) {
+                  lastMsg.streaming.single = event.partial;
+                }
+                return { ...prev, messages };
+              });
+              break;
+
+            case "single_complete":
+              setCurrentConversation((prev) => {
+                if (!prev) return null;
+                const messages = [...prev.messages];
+                const lastMsg = messages[messages.length - 1];
+                lastMsg.singleResponse = event.data;
+                if (lastMsg.streaming) {
+                  lastMsg.streaming.single = "";
+                }
+                if (lastMsg.loading) {
+                  lastMsg.loading.single = false;
+                }
+                return { ...prev, messages };
+              });
+              break;
+
             case "stage1_start":
               setCurrentConversation((prev) => {
                 if (!prev) return null;
@@ -327,7 +395,8 @@ export default function Home() {
               console.log("Unknown event type:", eventType);
           }
         },
-        attachments
+        attachments,
+        useCouncil
       );
     } catch (error) {
       console.error("Failed to send message:", error);

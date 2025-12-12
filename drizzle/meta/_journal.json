@@ -15,6 +15,13 @@
       "when": 1765553245553,
       "tag": "0001_curved_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1765557873312,
+      "tag": "0002_hesitant_mantis",
+      "breakpoints": true
     }
   ]
 }

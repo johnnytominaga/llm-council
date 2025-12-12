@@ -85,6 +85,22 @@ export const userSettings = sqliteTable('userSettings', {
     .references(() => user.id, { onDelete: 'cascade' }),
   councilModels: text('councilModels').notNull(), // JSON array of 4 model IDs
   chairmanModel: text('chairmanModel').notNull(),
+  mode: text('mode', { enum: ['single', 'council'] }).notNull().default('single'),
+  singleModel: text('singleModel'), // Model ID for single mode
+  preprocessModel: text('preprocessModel'), // Optional preprocessing model
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
+export const conversationAttachment = sqliteTable('conversationAttachment', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversationId')
+    .notNull()
+    .references(() => conversation.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(), // S3 key
+  url: text('url').notNull(), // S3 URL
+  filename: text('filename').notNull(),
+  contentType: text('contentType').notNull(),
+  size: integer('size').notNull(),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
