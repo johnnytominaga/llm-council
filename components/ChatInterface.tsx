@@ -6,8 +6,7 @@ import Stage1 from "./Stage1";
 import Stage2 from "./Stage2";
 import Stage3 from "./Stage3";
 import ResultsView from "./ResultsView";
-import FilePicker from "./FilePicker";
-import { Button } from "@/components/ui/button";
+import PromptSettings from "./PromptSettings";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
@@ -41,7 +40,12 @@ export default function ChatInterface({
   const [viewMode, setViewMode] = useState<
     "conversation" | "results" | "attachments"
   >("conversation");
+  const [currentModel, setCurrentModel] = useState<string>("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,6 +71,107 @@ export default function ChatInterface({
       setConversationAttachments(result.attachments || []);
     } catch (error) {
       console.error("Failed to load conversation attachments:", error);
+    }
+  };
+
+  // Load user settings to get current model
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await api.getSettings();
+        // Show current model based on mode
+        if (settings.mode === "council") {
+          setCurrentModel(settings.chairmanModel);
+        } else {
+          setCurrentModel(settings.singleModel);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  // Handle file upload
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        const result = await response.json();
+        // The API returns { file: { key, url, filename, contentType, size } }
+        return {
+          key: result.file.key,
+          url: result.file.url,
+          filename: result.file.filename,
+          contentType: result.file.contentType,
+          size: result.file.size,
+        };
+      });
+
+      const uploadedFiles = await Promise.all(uploadPromises);
+      setAttachments((prev) => [...prev, ...uploadedFiles]);
+    } catch (error) {
+      console.error("File upload failed:", error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = async (index: number) => {
+    const fileToRemove = attachments[index];
+
+    // Optimistically update UI
+    const newAttachments = attachments.filter((_, i) => i !== index);
+    setAttachments(newAttachments);
+
+    // Try to delete from S3 in background
+    try {
+      await api.deleteUploadedFile(fileToRemove.key);
+    } catch (err) {
+      console.error("Failed to delete file from S3:", err);
     }
   };
 
@@ -482,76 +587,218 @@ export default function ChatInterface({
       </div>
 
       {/* Input Form - Always visible */}
-      <form
-        className="p-6 border-t border-neutral-800 bg-neutral-900/60"
-        onSubmit={handleSubmit}
-      >
-        <div className="space-y-3">
-          <FilePicker
-            onFilesSelected={setAttachments}
-            maxFiles={5}
-            attachments={attachments}
-          />
-
-          {/* Council Mode Checkbox */}
-          <label className="flex items-center gap-2 p-3 bg-neutral-900 rounded-md ring-1 ring-neutral-800 cursor-pointer hover:ring-neutral-700 transition-all relative">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={useCouncil}
-                onChange={(e) => setUseCouncil(e.target.checked)}
-                className="w-4 h-4 rounded border-neutral-700 bg-neutral-800 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0 checked:bg-primary checked:border-primary appearance-none"
-              />
-              <span className="absolute text-neutral-800  peer-checked:opacity-100 top-1/2 left-[20px] transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3.5 w-3.5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  stroke="currentColor"
-                  stroke-width="1"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  ></path>
-                </svg>
-              </span>
-              <div className="flex-1">
-                <span className="text-sm text-neutral-200 font-medium">
-                  Use Council Mode
-                </span>
+      <div className="border-t border-neutral-800 bg-neutral-900/60">
+        <div className="max-w-4xl mx-auto p-6">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* File attachments display (inline chips) */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {attachments.map((attachment, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-neutral-800 rounded-lg text-sm group"
+                  >
+                    {attachment.contentType?.startsWith("image/") ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="text-neutral-400"
+                      >
+                        <rect
+                          x="3"
+                          y="3"
+                          width="18"
+                          height="18"
+                          rx="2"
+                          ry="2"
+                        />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="text-neutral-400"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </svg>
+                    )}
+                    <span className="text-neutral-300 truncate max-w-[200px]">
+                      {attachment.filename}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(index)}
+                      className="text-neutral-500 hover:text-neutral-200 opacity-70 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Higher cost • Runs 3-stage deliberation across multiple models
-                for better quality
-              </p>
-            </div>
-          </label>
+            )}
 
-          <div className="flex items-end gap-3">
-            <Textarea
-              placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              rows={3}
-              className="flex-1 min-h-[80px] max-h-[300px] resize-y"
-            />
-            <Button
-              type="submit"
-              disabled={
-                (!input.trim() && attachments.length === 0) || isLoading
-              }
-              size="lg"
+            {/* Main input area with drag-and-drop */}
+            <div
+              className={`relative rounded-xl ring-1 transition-all ${
+                isDragging
+                  ? "ring-2 ring-primary bg-primary/5"
+                  : "ring-neutral-800 bg-neutral-900"
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
             >
-              Send
-            </Button>
-          </div>
+              <Textarea
+                ref={textareaRef}
+                placeholder="Ask your question... (Shift+Enter for new line, Enter to send)"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading}
+                rows={3}
+                className="w-full min-h-[100px] max-h-[300px] resize-none border-0 bg-transparent focus:ring-0 pr-32 pb-12 text-neutral-100 placeholder:text-neutral-500"
+              />
+
+              {/* Bottom controls */}
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                {/* Left controls */}
+                <div className="flex items-center gap-2">
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf"
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                    className="hidden"
+                  />
+
+                  {/* Plus button for file upload */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading || isLoading}
+                    className="p-2 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 rounded-lg transition-colors disabled:opacity-50"
+                    title="Attach files"
+                  >
+                    {isUploading ? (
+                      <div className="w-5 h-5 border-2 border-neutral-700 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Settings popover */}
+                  <PromptSettings
+                    useCouncil={useCouncil}
+                    onCouncilChange={setUseCouncil}
+                  />
+                </div>
+
+                {/* Right side - model name and submit */}
+                <div className="flex items-center gap-3">
+                  {currentModel && (
+                    <span className="text-xs text-neutral-500">
+                      {currentModel.split("/").pop()}
+                    </span>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={
+                      (!input.trim() && attachments.length === 0) || isLoading
+                    }
+                    className="p-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="12" y1="19" x2="12" y2="5" />
+                        <polyline points="5 12 12 5 19 12" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Drag overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-xl pointer-events-none">
+                  <div className="text-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="mx-auto mb-2 text-primary"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <p className="text-sm text-primary font-medium">
+                      Drop files to upload
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
