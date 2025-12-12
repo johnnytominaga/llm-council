@@ -192,6 +192,10 @@ export const api = {
     councilModels?: string[];
     chairmanModel?: string;
     preprocessModel?: string | null;
+    stage1Prompt?: string | null;
+    stage2Prompt?: string | null;
+    stage3Prompt?: string | null;
+    preprocessPrompt?: string | null;
   }) {
     const response = await fetch(`${API_BASE}/api/settings`, {
       method: 'PUT',

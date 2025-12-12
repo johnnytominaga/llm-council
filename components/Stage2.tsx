@@ -1,6 +1,6 @@
 'use client';
 
-import ReactMarkdown from 'react-markdown';
+import SafeMarkdown from '@/components/SafeMarkdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -106,9 +106,9 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, stre
                   <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 ring-1 ring-neutral-800">
                     <div className="mb-3 text-xs font-mono text-neutral-400">{model}</div>
                     <div className="prose prose-sm prose-invert max-w-none">
-                      <ReactMarkdown>
+                      <SafeMarkdown>
                         {deAnonymizeText(content, labelToModel)}
-                      </ReactMarkdown>
+                      </SafeMarkdown>
                       {isStreaming && (
                         <span className="inline-block ml-0.5 animate-pulse font-bold text-primary">▊</span>
                       )}

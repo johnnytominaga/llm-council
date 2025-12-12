@@ -59,6 +59,11 @@ export const conversation = sqliteTable('conversation', {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   title: text('title').notNull().default('New Conversation'),
+  // Per-conversation custom prompts (null = use user settings or defaults)
+  stage1Prompt: text('stage1Prompt'),
+  stage2Prompt: text('stage2Prompt'),
+  stage3Prompt: text('stage3Prompt'),
+  preprocessPrompt: text('preprocessPrompt'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
@@ -88,6 +93,11 @@ export const userSettings = sqliteTable('userSettings', {
   mode: text('mode', { enum: ['single', 'council'] }).notNull().default('single'),
   singleModel: text('singleModel'), // Model ID for single mode
   preprocessModel: text('preprocessModel'), // Optional preprocessing model
+  // Custom prompt templates (null = use defaults)
+  stage1Prompt: text('stage1Prompt'), // Custom Stage 1 prompt
+  stage2Prompt: text('stage2Prompt'), // Custom Stage 2 prompt
+  stage3Prompt: text('stage3Prompt'), // Custom Stage 3 prompt
+  preprocessPrompt: text('preprocessPrompt'), // Custom preprocessing prompt
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

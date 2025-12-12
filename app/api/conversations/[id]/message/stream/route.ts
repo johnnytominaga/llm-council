@@ -39,6 +39,12 @@ async function getUserModels(userId: string): Promise<{
   councilModels: string[];
   chairmanModel: string;
   preprocessModel: string | null;
+  customPrompts: {
+    stage1Prompt: string | null;
+    stage2Prompt: string | null;
+    stage3Prompt: string | null;
+    preprocessPrompt: string | null;
+  };
 }> {
   const settings = await db.query.userSettings.findFirst({
     where: eq(userSettings.userId, userId),
@@ -51,6 +57,12 @@ async function getUserModels(userId: string): Promise<{
       councilModels: JSON.parse(settings.councilModels),
       chairmanModel: settings.chairmanModel,
       preprocessModel: settings.preprocessModel || null,
+      customPrompts: {
+        stage1Prompt: settings.stage1Prompt || null,
+        stage2Prompt: settings.stage2Prompt || null,
+        stage3Prompt: settings.stage3Prompt || null,
+        preprocessPrompt: settings.preprocessPrompt || null,
+      },
     };
   }
 
@@ -61,6 +73,12 @@ async function getUserModels(userId: string): Promise<{
     councilModels: COUNCIL_MODELS,
     chairmanModel: CHAIRMAN_MODEL,
     preprocessModel: null,
+    customPrompts: {
+      stage1Prompt: null,
+      stage2Prompt: null,
+      stage3Prompt: null,
+      preprocessPrompt: null,
+    },
   };
 }
 
@@ -79,8 +97,8 @@ export async function POST(
       );
     }
 
-    // Get user's model settings
-    const { mode, singleModel, councilModels, chairmanModel, preprocessModel } = await getUserModels(userId);
+    // Get user's model settings and custom prompts
+    const { mode, singleModel, councilModels, chairmanModel, preprocessModel, customPrompts } = await getUserModels(userId);
 
     const { id } = await params;
     const { content, attachments, useCouncil } = await request.json();
@@ -131,10 +149,36 @@ export async function POST(
             // ========== SINGLE MODEL MODE ==========
             let singlePartial = '';
 
+            // Build conversation history for context
+            const conversationMessages: any[] = [];
+            for (const msg of conversation.messages) {
+              if (msg.role === 'user') {
+                conversationMessages.push({
+                  role: 'user',
+                  content: msg.content || '',
+                });
+              } else if (msg.role === 'assistant') {
+                // Use stage3 (final answer) if available, otherwise use first stage1 response
+                const assistantContent = msg.stage3?.response || msg.stage1?.[0]?.response || '';
+                if (assistantContent) {
+                  conversationMessages.push({
+                    role: 'assistant',
+                    content: assistantContent,
+                  });
+                }
+              }
+            }
+
+            // Add current message with attachments
+            conversationMessages.push({
+              role: 'user',
+              content: buildMessageContent(content, allAttachments),
+            });
+
             sendEvent('single_start', { model: singleModel });
             const response = await queryModelStream(
               singleModel,
-              [{ role: 'user', content: buildMessageContent(content, allAttachments) }],
+              conversationMessages,
               (streamChunk) => {
                 if (!streamChunk.done && streamChunk.content) {
                   singlePartial += streamChunk.content;
@@ -172,18 +216,38 @@ export async function POST(
             controller.close();
           } else {
             // ========== COUNCIL MODE ==========
-            // Preprocessing (if enabled) - only for council mode
-            let processedContent = content;
+            // Build conversation context (always, not just with preprocessing)
+            let contextualMessage = content;
+
+            // If conversation has history, add it as context
+            if (conversation.messages.length > 0) {
+              let historyText = 'Previous conversation:\n\n';
+              for (const msg of conversation.messages) {
+                if (msg.role === 'user') {
+                  historyText += `User: ${msg.content || ''}\n\n`;
+                } else if (msg.role === 'assistant') {
+                  const assistantContent = msg.stage3?.response || msg.stage1?.[0]?.response || '';
+                  if (assistantContent) {
+                    historyText += `Assistant: ${assistantContent}\n\n`;
+                  }
+                }
+              }
+              historyText += `\nCurrent question: ${content}`;
+              contextualMessage = historyText;
+            }
+
+            // Preprocessing (if enabled) - enhances the context further
             if (preprocessModel) {
               sendEvent('preprocessing_start', { model: preprocessModel });
-              processedContent = await preprocessConversationHistory(
+              contextualMessage = await preprocessConversationHistory(
                 id,
                 userId,
                 preprocessModel,
                 content,
-                allAttachments
+                allAttachments,
+                customPrompts
               );
-              sendEvent('preprocessing_complete', { enhanced: processedContent !== content });
+              sendEvent('preprocessing_complete', { enhanced: true });
             }
 
             // Initialize partial results for streaming
@@ -194,7 +258,7 @@ export async function POST(
             // Stage 1: Collect responses with streaming
             sendEvent('stage1_start', {});
             const stage1Results = await stage1CollectResponsesStream(
-              processedContent,
+              contextualMessage,
               councilModels,
               (model, chunk) => {
                 // Accumulate chunks for each model
@@ -210,14 +274,15 @@ export async function POST(
                   partial: stage1Partial[model],
                 });
               },
-              allAttachments
+              allAttachments,
+              customPrompts
             );
             sendEvent('stage1_complete', { data: stage1Results });
 
             // Stage 2: Collect rankings with streaming
             sendEvent('stage2_start', {});
             const [stage2Results, labelToModel] = await stage2CollectRankingsStream(
-              processedContent,
+              contextualMessage,
               stage1Results,
               councilModels,
               (model, chunk) => {
@@ -233,7 +298,8 @@ export async function POST(
                   chunk,
                   partial: stage2Partial[model],
                 });
-              }
+              },
+              customPrompts
             );
             const aggregateRankings = calculateAggregateRankings(
               stage2Results,
@@ -250,7 +316,7 @@ export async function POST(
             // Stage 3: Synthesize final with streaming
             sendEvent('stage3_start', {});
             const stage3Result = await stage3SynthesizeFinalStream(
-              processedContent,
+              contextualMessage,
               stage1Results,
               stage2Results,
               chairmanModel,
@@ -263,7 +329,8 @@ export async function POST(
                   chunk,
                   partial: stage3Partial,
                 });
-              }
+              },
+              customPrompts
             );
             sendEvent('stage3_complete', { data: stage3Result });
 

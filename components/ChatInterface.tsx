@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import SafeMarkdown from "@/components/SafeMarkdown";
 import Stage1 from "./Stage1";
 import Stage2 from "./Stage2";
 import Stage3 from "./Stage3";
@@ -37,6 +37,7 @@ export default function ChatInterface({
     ConversationAttachment[]
   >([]);
   const [useCouncil, setUseCouncil] = useState(false);
+  const [defaultMode, setDefaultMode] = useState<"single" | "council">("single");
   const [viewMode, setViewMode] = useState<
     "conversation" | "results" | "attachments"
   >("conversation");
@@ -74,23 +75,41 @@ export default function ChatInterface({
     }
   };
 
-  // Load user settings to get current model
+  // Load user settings to get current model and default mode
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const settings = await api.getSettings();
+        const mode = settings.mode || "single";
+        setDefaultMode(mode);
+
         // Show current model based on mode
-        if (settings.mode === "council") {
+        if (mode === "council") {
           setCurrentModel(settings.chairmanModel);
+          setUseCouncil(true); // Default to council mode if that's the user's setting
         } else {
           setCurrentModel(settings.singleModel);
+          setUseCouncil(false); // Default to single mode
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
       }
     };
+
+    // Load settings initially and when conversation changes
     loadSettings();
-  }, []);
+
+    // Listen for settings changes from the Settings dialog
+    const handleSettingsChanged = () => {
+      loadSettings();
+    };
+    window.addEventListener('settingsChanged', handleSettingsChanged);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('settingsChanged', handleSettingsChanged);
+    };
+  }, [conversation?.id]); // Reload settings when conversation changes
 
   // Handle file upload
   const handleFileUpload = async (files: FileList | null) => {
@@ -198,7 +217,8 @@ export default function ChatInterface({
       // Clear input state immediately
       setInput("");
       setAttachments([]);
-      setUseCouncil(false);
+      // Reset to user's default mode instead of always false
+      setUseCouncil(defaultMode === "council");
 
       // Send message with captured values
       onSendMessage(currentInput, currentAttachments, currentUseCouncil);
@@ -248,7 +268,7 @@ export default function ChatInterface({
     <div className="flex-1 flex flex-col h-screen bg-neutral-950">
       {/* View Mode Tabs */}
       {conversation.messages.length > 0 && (
-        <div className="border-b border-neutral-800 bg-neutral-900/60 px-6 pt-4 md:pt-4 pt-16">
+        <div className="border-b border-neutral-800 bg-neutral-900/60 px-6 pt-16 md:pt-4">
           <Tabs
             value={viewMode}
             onValueChange={(v) =>
@@ -411,7 +431,7 @@ export default function ChatInterface({
                   <div className="bg-neutral-900/60 p-4 rounded-2xl ring-1 ring-neutral-800 max-w-[80%]">
                     {msg.content && (
                       <div className="prose prose-sm max-w-none prose-invert">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <SafeMarkdown>{msg.content}</SafeMarkdown>
                       </div>
                     )}
                     {msg.attachments && msg.attachments.length > 0 && (
@@ -497,11 +517,11 @@ export default function ChatInterface({
                   {(msg.singleResponse || msg.streaming?.single) && (
                     <div className="bg-neutral-900/60 p-6 rounded-2xl ring-1 ring-neutral-800">
                       <div className="prose prose-sm max-w-none prose-invert">
-                        <ReactMarkdown>
+                        <SafeMarkdown>
                           {msg.streaming?.single ||
                             msg.singleResponse?.response ||
                             ""}
-                        </ReactMarkdown>
+                        </SafeMarkdown>
                       </div>
                       {msg.singleResponse && (
                         <div className="mt-4 pt-4 border-t border-neutral-800">

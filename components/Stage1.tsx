@@ -1,6 +1,6 @@
 'use client';
 
-import ReactMarkdown from 'react-markdown';
+import SafeMarkdown from '@/components/SafeMarkdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -52,7 +52,7 @@ export default function Stage1({ responses, streaming = {} }: Stage1Props) {
               <TabsContent key={model} value={model} className="mt-4">
                 <div className="mb-3 text-xs font-mono text-neutral-400">{model}</div>
                 <div className="prose prose-sm prose-invert max-w-none">
-                  <ReactMarkdown>{content}</ReactMarkdown>
+                  <SafeMarkdown>{content}</SafeMarkdown>
                   {isStreaming && streaming[model] && (
                     <span className="inline-block ml-0.5 animate-pulse font-bold text-primary">▊</span>
                   )}

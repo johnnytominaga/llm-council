@@ -1,6 +1,6 @@
 'use client';
 
-import ReactMarkdown from 'react-markdown';
+import SafeMarkdown from '@/components/SafeMarkdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface FinalResponse {
@@ -35,7 +35,7 @@ export default function Stage3({ finalResponse, streaming = '' }: Stage3Props) {
             </div>
           )}
           <div className="prose prose-sm prose-invert max-w-none leading-relaxed">
-            <ReactMarkdown>{content}</ReactMarkdown>
+            <SafeMarkdown>{content}</SafeMarkdown>
             {isStreaming && (
               <span className="inline-block ml-0.5 animate-pulse font-bold text-primary">▊</span>
             )}

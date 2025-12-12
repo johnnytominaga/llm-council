@@ -5,6 +5,7 @@
 import { queryModelsParallel, queryModel, queryModelStream, Message, MessageContent, StreamChunk } from './openrouter';
 import { COUNCIL_MODELS, CHAIRMAN_MODEL } from './config';
 import { getConversation, getConversationAttachments } from './storage-adapter';
+import { CustomPrompts, fillPromptTemplate, getEffectivePrompt } from './prompt-templates';
 
 /**
  * Helper function to build message content with attachments for OpenRouter.
@@ -23,6 +24,18 @@ export function buildMessageContent(text: string, attachments?: any[]): MessageC
 
   // Add each attachment in OpenRouter format
   for (const attachment of attachments) {
+    // Skip attachments with invalid URLs (local paths, empty, etc.)
+    if (!attachment.url ||
+        attachment.url.startsWith('/mnt/') ||
+        attachment.url.startsWith('file://') ||
+        !attachment.url.startsWith('http')) {
+      console.warn('Skipping invalid attachment URL:', {
+        filename: attachment.filename,
+        url: attachment.url,
+      });
+      continue;
+    }
+
     console.log('Building message content with attachment:', {
       filename: attachment.filename,
       contentType: attachment.contentType,
@@ -385,7 +398,8 @@ export async function preprocessConversationHistory(
   userId: string,
   preprocessModel: string,
   currentMessage: string,
-  attachments?: any[]
+  attachments?: any[],
+  customPrompts?: CustomPrompts | null
 ): Promise<string> {
   /**
    * Preprocess conversation history and attachments before sending to council.
@@ -397,6 +411,7 @@ export async function preprocessConversationHistory(
    *   preprocessModel: Model ID to use for preprocessing
    *   currentMessage: The current user message
    *   attachments: Optional current message attachments
+   *   customPrompts: Optional custom prompts to use
    *
    * Returns:
    *   Enhanced message with conversation context, or original message if preprocessing fails
@@ -413,55 +428,49 @@ export async function preprocessConversationHistory(
     // Load conversation-level attachments
     const conversationAttachments = await getConversationAttachments(conversationId, userId);
 
-    // Build comprehensive context prompt
-    let contextPrompt = `You are a preprocessing assistant. Your task is to analyze the entire conversation history and create a comprehensive context summary that will help AI models provide better responses.
-
-CONVERSATION HISTORY:
-`;
-
-    // Add each message in the conversation
+    // Build conversation history text
+    let conversationHistoryText = '';
     for (const msg of conversation.messages) {
       if (msg.role === 'user') {
-        contextPrompt += `\nUser: ${msg.content || ''}`;
+        conversationHistoryText += `\nUser: ${msg.content || ''}`;
         if (msg.attachments && msg.attachments.length > 0) {
-          contextPrompt += `\n[User included ${msg.attachments.length} attachment(s): ${msg.attachments.map((a: any) => a.filename).join(', ')}]`;
+          conversationHistoryText += `\n[User included ${msg.attachments.length} attachment(s): ${msg.attachments.map((a: any) => a.filename).join(', ')}]`;
         }
       } else if (msg.role === 'assistant') {
         // For assistant messages, use stage3 if available (final synthesis), otherwise use stage1
         if (msg.stage3) {
-          contextPrompt += `\nAssistant: ${msg.stage3.response || ''}`;
+          conversationHistoryText += `\nAssistant: ${msg.stage3.response || ''}`;
         } else if (msg.stage1 && msg.stage1.length > 0) {
-          contextPrompt += `\nAssistant: ${msg.stage1[0].response || ''}`;
+          conversationHistoryText += `\nAssistant: ${msg.stage1[0].response || ''}`;
         }
       }
     }
 
-    // Add conversation-level attachments info
+    // Build conversation attachments text
+    let conversationAttachmentsText = '';
     if (conversationAttachments.length > 0) {
-      contextPrompt += `\n\nCONVERSATION ATTACHMENTS:
+      conversationAttachmentsText = `CONVERSATION ATTACHMENTS:
 The user has uploaded ${conversationAttachments.length} file(s) for this conversation:
-${conversationAttachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}
-`;
+${conversationAttachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}`;
     }
 
-    // Add current message attachments info
+    // Build current attachments text
+    let currentAttachmentsText = '';
     if (attachments && attachments.length > 0) {
-      contextPrompt += `\n\nCURRENT MESSAGE ATTACHMENTS:
-${attachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}
-`;
+      currentAttachmentsText = `CURRENT MESSAGE ATTACHMENTS:
+${attachments.map((a) => `- ${a.filename} (${a.contentType})`).join('\n')}`;
     }
 
-    contextPrompt += `\n\nCURRENT USER MESSAGE:
-${currentMessage}
+    // Get the effective prompt (custom or default)
+    const promptTemplate = getEffectivePrompt('preprocessing', customPrompts);
 
-YOUR TASK:
-Provide a comprehensive summary that:
-1. Identifies key topics and themes from the conversation history
-2. Notes any relevant information from previous messages that helps understand the current question
-3. Highlights important context from attachments if relevant
-4. Creates an enhanced version of the current message that includes necessary context
-
-Output ONLY the enhanced message that incorporates relevant context. Do not add meta-commentary or explanations.`;
+    // Fill template with variables
+    const contextPrompt = fillPromptTemplate(promptTemplate, {
+      conversationHistory: conversationHistoryText,
+      currentMessage,
+      conversationAttachments: conversationAttachmentsText,
+      currentAttachments: currentAttachmentsText,
+    });
 
     // Query preprocessing model with 60s timeout
     const messages: Message[] = [{ role: 'user', content: contextPrompt }];
@@ -549,15 +558,24 @@ export async function stage1CollectResponsesStream(
   userQuery: string,
   councilModels: string[],
   onChunk: (model: string, chunk: string) => void,
-  attachments?: any[]
+  attachments?: any[],
+  customPrompts?: CustomPrompts | null
 ): Promise<Stage1Result[]> {
   /**
    * Stage 1 with streaming: Collect individual responses from all council models.
    * Calls onChunk for each text chunk received from any model.
    */
+  // Get the effective prompt (custom or default)
+  const promptTemplate = getEffectivePrompt('stage1', customPrompts);
+
+  // Fill template with variables
+  const promptText = fillPromptTemplate(promptTemplate, {
+    question: userQuery,
+  });
+
   const messages: Message[] = [{
     role: 'user',
-    content: buildMessageContent(userQuery, attachments)
+    content: buildMessageContent(promptText, attachments)
   }];
 
   // Query all models in parallel with streaming
@@ -587,7 +605,8 @@ export async function stage2CollectRankingsStream(
   userQuery: string,
   stage1Results: Stage1Result[],
   councilModels: string[],
-  onChunk: (model: string, chunk: string) => void
+  onChunk: (model: string, chunk: string) => void,
+  customPrompts?: CustomPrompts | null
 ): Promise<[Stage2Result[], Record<string, string>]> {
   /**
    * Stage 2 with streaming: Each model ranks the anonymized responses.
@@ -601,30 +620,19 @@ export async function stage2CollectRankingsStream(
     labelToModel[`Response ${label}`] = stage1Results[index].model;
   });
 
-  // Build the ranking prompt
+  // Build the responses text for the template
   const responsesText = stage1Results
     .map((result, index) => `Response ${labels[index]}:\n${result.response}`)
     .join('\n\n');
 
-  const rankingPrompt = `You are evaluating different responses to the following question:
+  // Get the effective prompt (custom or default)
+  const promptTemplate = getEffectivePrompt('stage2', customPrompts);
 
-Question: ${userQuery}
-
-Here are the responses from different models (anonymized):
-
-${responsesText}
-
-Your task:
-1. First, evaluate each response individually. For each response, explain what it does well and what it does poorly.
-2. Then, at the very end of your response, provide a final ranking.
-
-IMPORTANT: Your final ranking MUST be formatted EXACTLY as follows:
-- Start with the line "FINAL RANKING:" (all caps, with colon)
-- Then list the responses from best to worst as a numbered list
-- Each line should be: number, period, space, then ONLY the response label (e.g., "1. Response A")
-- Do not add any other text or explanations in the ranking section
-
-Remember: Evaluate objectively based on accuracy, completeness, clarity, and usefulness.`;
+  // Fill template with variables
+  const rankingPrompt = fillPromptTemplate(promptTemplate, {
+    question: userQuery,
+    responses: responsesText,
+  });
 
   const messages: Message[] = [{ role: 'user', content: rankingPrompt }];
 
@@ -659,39 +667,31 @@ export async function stage3SynthesizeFinalStream(
   stage1Results: Stage1Result[],
   stage2Results: Stage2Result[],
   chairmanModel: string,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  customPrompts?: CustomPrompts | null
 ): Promise<Stage3Result> {
   /**
    * Stage 3 with streaming: Chairman synthesizes the final answer.
    * Calls onChunk for each text chunk received.
    */
-  // Build context from Stage 1 and Stage 2
+  // Build context from Stage 1 and Stage 2 for template
   const stage1Text = stage1Results
-    .map((r) => `Model: ${r.model}\n${r.response}`)
-    .join('\n\n---\n\n');
+    .map((r) => `Model: ${r.model}\nResponse: ${r.response}`)
+    .join('\n\n');
 
-  const stage2Text = stage2Results
-    .map((r) => `Model: ${r.model}\n${r.ranking}`)
-    .join('\n\n---\n\n');
+  const rankingsText = stage2Results
+    .map((r) => `Model: ${r.model}\nRanking: ${r.ranking}`)
+    .join('\n\n');
 
-  const synthesisPrompt = `You are the chairman of a council of AI models. Your role is to synthesize the best possible answer to the user's question based on the individual responses and peer rankings from the council members.
+  // Get the effective prompt (custom or default)
+  const promptTemplate = getEffectivePrompt('stage3', customPrompts);
 
-User's Question:
-${userQuery}
-
-Stage 1 - Individual Responses:
-${stage1Text}
-
-Stage 2 - Peer Rankings and Evaluations:
-${stage2Text}
-
-Your task:
-1. Consider all individual responses and the peer evaluations
-2. Identify the strongest points from each response
-3. Resolve any contradictions or disagreements
-4. Synthesize a comprehensive, accurate, and well-structured final answer
-
-Important: DO NOT simply summarize. Create a cohesive, authoritative response that represents the best collective intelligence of the council.`;
+  // Fill template with variables
+  const synthesisPrompt = fillPromptTemplate(promptTemplate, {
+    question: userQuery,
+    stage1Responses: stage1Text,
+    rankings: rankingsText,
+  });
 
   const messages: Message[] = [{ role: 'user', content: synthesisPrompt }];
 

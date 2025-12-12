@@ -34,6 +34,10 @@ export async function GET() {
         mode: settings.mode || 'single',
         singleModel: settings.singleModel || COUNCIL_MODELS[0],
         preprocessModel: settings.preprocessModel || null,
+        stage1Prompt: settings.stage1Prompt || null,
+        stage2Prompt: settings.stage2Prompt || null,
+        stage3Prompt: settings.stage3Prompt || null,
+        preprocessPrompt: settings.preprocessPrompt || null,
       });
     }
 
@@ -44,6 +48,10 @@ export async function GET() {
       mode: 'single',
       singleModel: COUNCIL_MODELS[0],
       preprocessModel: null,
+      stage1Prompt: null,
+      stage2Prompt: null,
+      stage3Prompt: null,
+      preprocessPrompt: null,
     });
   } catch (error) {
     console.error('Error getting settings:', error);
@@ -67,7 +75,29 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { councilModels, chairmanModel, mode, singleModel, preprocessModel } = body;
+    const {
+      councilModels,
+      chairmanModel,
+      mode,
+      singleModel,
+      preprocessModel,
+      stage1Prompt,
+      stage2Prompt,
+      stage3Prompt,
+      preprocessPrompt,
+    } = body;
+
+    console.log('PUT /api/settings - Request body:', {
+      mode,
+      singleModel,
+      councilModels,
+      chairmanModel,
+      preprocessModel,
+      stage1Prompt: stage1Prompt ? `${stage1Prompt.substring(0, 50)}...` : stage1Prompt,
+      stage2Prompt: stage2Prompt ? `${stage2Prompt.substring(0, 50)}...` : stage2Prompt,
+      stage3Prompt: stage3Prompt ? `${stage3Prompt.substring(0, 50)}...` : stage3Prompt,
+      preprocessPrompt: preprocessPrompt ? `${preprocessPrompt.substring(0, 50)}...` : preprocessPrompt,
+    });
 
     // Default to single mode if not specified
     const effectiveMode = mode || 'single';
@@ -108,16 +138,29 @@ export async function PUT(request: NextRequest) {
 
     if (existing) {
       // Update existing settings
+      const updateData = {
+        councilModels: effectiveMode === 'council' ? JSON.stringify(councilModels) : existing.councilModels,
+        chairmanModel: effectiveMode === 'council' ? chairmanModel : existing.chairmanModel,
+        mode: effectiveMode,
+        singleModel: effectiveMode === 'single' ? singleModel : existing.singleModel,
+        preprocessModel: preprocessModel || null,
+        // Update custom prompts (undefined means don't change, null means clear)
+        stage1Prompt: stage1Prompt !== undefined ? stage1Prompt : existing.stage1Prompt,
+        stage2Prompt: stage2Prompt !== undefined ? stage2Prompt : existing.stage2Prompt,
+        stage3Prompt: stage3Prompt !== undefined ? stage3Prompt : existing.stage3Prompt,
+        preprocessPrompt: preprocessPrompt !== undefined ? preprocessPrompt : existing.preprocessPrompt,
+        updatedAt: new Date(),
+      };
+      console.log('Updating existing settings with:', {
+        ...updateData,
+        stage1Prompt: updateData.stage1Prompt ? `${updateData.stage1Prompt.substring(0, 50)}...` : updateData.stage1Prompt,
+        stage2Prompt: updateData.stage2Prompt ? `${updateData.stage2Prompt.substring(0, 50)}...` : updateData.stage2Prompt,
+        stage3Prompt: updateData.stage3Prompt ? `${updateData.stage3Prompt.substring(0, 50)}...` : updateData.stage3Prompt,
+        preprocessPrompt: updateData.preprocessPrompt ? `${updateData.preprocessPrompt.substring(0, 50)}...` : updateData.preprocessPrompt,
+      });
       await db
         .update(userSettings)
-        .set({
-          councilModels: effectiveMode === 'council' ? JSON.stringify(councilModels) : existing.councilModels,
-          chairmanModel: effectiveMode === 'council' ? chairmanModel : existing.chairmanModel,
-          mode: effectiveMode,
-          singleModel: effectiveMode === 'single' ? singleModel : existing.singleModel,
-          preprocessModel: preprocessModel || null,
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(userSettings.userId, userId));
     } else {
       // Create new settings - use defaults for fields not provided
@@ -129,6 +172,10 @@ export async function PUT(request: NextRequest) {
         mode: effectiveMode,
         singleModel: effectiveMode === 'single' ? singleModel : COUNCIL_MODELS[0],
         preprocessModel: preprocessModel || null,
+        stage1Prompt: stage1Prompt || null,
+        stage2Prompt: stage2Prompt || null,
+        stage3Prompt: stage3Prompt || null,
+        preprocessPrompt: preprocessPrompt || null,
       });
     }
 
@@ -138,6 +185,10 @@ export async function PUT(request: NextRequest) {
       mode: effectiveMode,
       singleModel: effectiveMode === 'single' ? singleModel : (existing?.singleModel || COUNCIL_MODELS[0]),
       preprocessModel: preprocessModel || null,
+      stage1Prompt: stage1Prompt || existing?.stage1Prompt || null,
+      stage2Prompt: stage2Prompt || existing?.stage2Prompt || null,
+      stage3Prompt: stage3Prompt || existing?.stage3Prompt || null,
+      preprocessPrompt: preprocessPrompt || existing?.preprocessPrompt || null,
     });
   } catch (error) {
     console.error('Error updating settings:', error);

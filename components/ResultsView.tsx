@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import SafeMarkdown from "@/components/SafeMarkdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -270,7 +270,7 @@ export default function ResultsView({
                                     Question
                                 </div>
                                 <div className="prose prose-sm max-w-none">
-                                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                    <SafeMarkdown>{msg.content}</SafeMarkdown>
                                 </div>
                             </div>
                         ) : (
@@ -296,11 +296,11 @@ export default function ResultsView({
                                                                 response.model}
                                                         </div>
                                                         <div className="prose prose-sm max-w-none text-sm">
-                                                            <ReactMarkdown>
+                                                            <SafeMarkdown>
                                                                 {
                                                                     response.response
                                                                 }
-                                                            </ReactMarkdown>
+                                                            </SafeMarkdown>
                                                         </div>
                                                     </div>
                                                 )
@@ -365,9 +365,9 @@ export default function ResultsView({
                                                 msg.stage3.model}
                                         </div>
                                         <div className="prose prose-sm max-w-none bg-white p-4 rounded border border-green-200">
-                                            <ReactMarkdown>
+                                            <SafeMarkdown>
                                                 {msg.stage3.response}
-                                            </ReactMarkdown>
+                                            </SafeMarkdown>
                                         </div>
                                     </div>
                                 )}
