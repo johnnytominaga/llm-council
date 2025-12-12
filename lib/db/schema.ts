@@ -70,6 +70,7 @@ export const message = sqliteTable('message', {
     .references(() => conversation.id, { onDelete: 'cascade' }),
   role: text('role', { enum: ['user', 'assistant'] }).notNull(),
   content: text('content'), // For user messages
+  attachments: text('attachments'), // JSON string for file attachments
   stage1: text('stage1'), // JSON string for stage1 data
   stage2: text('stage2'), // JSON string for stage2 data
   stage3: text('stage3'), // JSON string for stage3 data

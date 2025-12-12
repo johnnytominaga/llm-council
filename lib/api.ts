@@ -74,16 +74,35 @@ export const api = {
   },
 
   /**
+   * Delete a conversation.
+   */
+  async deleteConversation(conversationId: string) {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}`,
+      {
+        method: 'DELETE',
+        credentials: 'include',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to delete conversation');
+    }
+    return response.json();
+  },
+
+  /**
    * Send a message and receive streaming updates.
    * @param conversationId - The conversation ID
    * @param content - The message content
    * @param onEvent - Callback function for each event: (eventType, data) => void
+   * @param attachments - Optional file attachments
    * @returns Promise<void>
    */
   async sendMessageStream(
     conversationId: string,
     content: string,
-    onEvent: (eventType: string, event: any) => void
+    onEvent: (eventType: string, event: any) => void,
+    attachments?: any[]
   ) {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream`,
@@ -93,7 +112,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, attachments }),
       }
     );
 

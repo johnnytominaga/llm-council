@@ -15,7 +15,6 @@ import {
   stage3SynthesizeFinalStream,
   calculateAggregateRankings,
   generateConversationTitle,
-  Stage1Result,
 } from '@/lib/council';
 import { getSession } from '@/lib/auth-server';
 import { db } from '@/lib/db';
@@ -69,7 +68,7 @@ export async function POST(
     const { councilModels, chairmanModel } = await getUserModels(userId);
 
     const { id } = await params;
-    const { content } = await request.json();
+    const { content, attachments } = await request.json();
 
     // Check if conversation exists
     const conversation = await getConversation(id, userId);
@@ -81,7 +80,7 @@ export async function POST(
     }
 
     // Add user message to storage
-    await addUserMessage(id, content, userId);
+    await addUserMessage(id, content, userId, attachments);
 
     // Create a readable stream for SSE
     const encoder = new TextEncoder();
@@ -116,7 +115,8 @@ export async function POST(
                 chunk,
                 partial: stage1Partial[model],
               });
-            }
+            },
+            attachments
           );
           sendEvent('stage1_complete', { data: stage1Results });
 

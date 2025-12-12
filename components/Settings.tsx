@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { COUNCIL_MODELS, CHAIRMAN_MODEL } from '@/lib/config';
+} from "@/components/ui/select";
+import { COUNCIL_MODELS, CHAIRMAN_MODEL } from "@/lib/config";
 
 interface SettingsProps {
   open: boolean;
@@ -46,8 +46,15 @@ interface ModelSelectProps {
   defaultModels: string[];
 }
 
-function ModelSelect({ value, onValueChange, availableModels, disabled, placeholder, defaultModels }: ModelSelectProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+function ModelSelect({
+  value,
+  onValueChange,
+  availableModels,
+  disabled,
+  placeholder,
+  defaultModels,
+}: ModelSelectProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredModels = searchTerm
@@ -62,18 +69,23 @@ function ModelSelect({ value, onValueChange, availableModels, disabled, placehol
   useEffect(() => {
     if (!isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSearchTerm('');
+      setSearchTerm("");
     }
   }, [isOpen]);
 
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled} onOpenChange={setIsOpen}>
+    <Select
+      value={value}
+      onValueChange={onValueChange}
+      disabled={disabled}
+      onOpenChange={setIsOpen}
+    >
       <SelectTrigger className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         <div
-          className="sticky top-0 bg-white p-2 border-b border-gray-200 z-10"
+          className="sticky top-0 bg-neutral-900 p-2 border-b border-neutral-800 z-10"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -100,7 +112,7 @@ function ModelSelect({ value, onValueChange, availableModels, disabled, placehol
                   <div className="flex items-center justify-between w-full">
                     <span>{model.name}</span>
                     {isDefault && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                      <span className="ml-2 text-xs bg-yellow-100 text-neutral-700 px-2 py-0.5 rounded">
                         Default
                       </span>
                     )}
@@ -119,8 +131,13 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
   const [loading, setLoading] = useState(false);
   const [loadingModels, setLoadingModels] = useState(true);
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
-  const [councilModels, setCouncilModels] = useState<string[]>(['', '', '', '']);
-  const [chairmanModel, setChairmanModel] = useState<string>('');
+  const [councilModels, setCouncilModels] = useState<string[]>([
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const [chairmanModel, setChairmanModel] = useState<string>("");
 
   // Load settings and available models
   useEffect(() => {
@@ -136,8 +153,8 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
       setCouncilModels(settings.councilModels);
       setChairmanModel(settings.chairmanModel);
     } catch (error) {
-      console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings');
+      console.error("Failed to load settings:", error);
+      toast.error("Failed to load settings");
     }
   };
 
@@ -151,8 +168,8 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
       );
       setAvailableModels(sortedModels);
     } catch (error) {
-      console.error('Failed to load models:', error);
-      toast.error('Failed to load available models');
+      console.error("Failed to load models:", error);
+      toast.error("Failed to load available models");
     } finally {
       setLoadingModels(false);
     }
@@ -161,23 +178,23 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
   const handleSave = async () => {
     // Validate that all 4 council models are selected
     if (councilModels.some((model) => !model)) {
-      toast.error('Please select all 4 council models');
+      toast.error("Please select all 4 council models");
       return;
     }
 
     if (!chairmanModel) {
-      toast.error('Please select a chairman model');
+      toast.error("Please select a chairman model");
       return;
     }
 
     try {
       setLoading(true);
       await api.updateSettings(councilModels, chairmanModel);
-      toast.success('Settings saved successfully');
+      toast.success("Settings saved successfully");
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to save settings:', error);
-      toast.error('Failed to save settings');
+      console.error("Failed to save settings:", error);
+      toast.error("Failed to save settings");
     } finally {
       setLoading(false);
     }
@@ -195,7 +212,8 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
         <DialogHeader>
           <DialogTitle>Model Settings</DialogTitle>
           <DialogDescription>
-            Configure the default models for new conversations. Select 4 council models and 1 chairman model.
+            Configure the default models for new conversations. Select 4 council
+            models and 1 chairman model.
           </DialogDescription>
         </DialogHeader>
 
@@ -204,7 +222,8 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Council Models (4 required)</h3>
             <p className="text-xs text-gray-500">
-              These models will deliberate on each question in Stage 1 and evaluate responses in Stage 2.
+              These models will deliberate on each question in Stage 1 and
+              evaluate responses in Stage 2.
             </p>
             {councilModels.map((modelId, index) => (
               <div key={index} className="space-y-2">
@@ -216,7 +235,9 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
                   onValueChange={(value) => updateCouncilModel(index, value)}
                   availableModels={availableModels}
                   disabled={loadingModels}
-                  placeholder={loadingModels ? 'Loading models...' : 'Select a model'}
+                  placeholder={
+                    loadingModels ? "Loading models..." : "Select a model"
+                  }
                   defaultModels={COUNCIL_MODELS}
                 />
               </div>
@@ -227,14 +248,17 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
           <div className="space-y-2">
             <h3 className="text-sm font-medium">Chairman Model</h3>
             <p className="text-xs text-gray-500">
-              This model will synthesize the final response in Stage 3 based on all council deliberations.
+              This model will synthesize the final response in Stage 3 based on
+              all council deliberations.
             </p>
             <ModelSelect
               value={chairmanModel}
               onValueChange={setChairmanModel}
               availableModels={availableModels}
               disabled={loadingModels}
-              placeholder={loadingModels ? 'Loading models...' : 'Select a model'}
+              placeholder={
+                loadingModels ? "Loading models..." : "Select a model"
+              }
               defaultModels={[CHAIRMAN_MODEL]}
             />
           </div>
@@ -249,7 +273,7 @@ export default function Settings({ open, onOpenChange }: SettingsProps) {
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={loading || loadingModels}>
-            {loading ? 'Saving...' : 'Save Settings'}
+            {loading ? "Saving..." : "Save Settings"}
           </Button>
         </DialogFooter>
       </DialogContent>

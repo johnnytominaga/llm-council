@@ -1,9 +1,9 @@
 /**
- * API routes for getting a specific conversation.
+ * API routes for getting and deleting a specific conversation.
  */
 
 import { NextResponse } from 'next/server';
-import { getConversation } from '@/lib/storage-adapter';
+import { getConversation, deleteConversation } from '@/lib/storage-adapter';
 import { getSession } from '@/lib/auth-server';
 
 export async function GET(
@@ -36,6 +36,34 @@ export async function GET(
     console.error('Error getting conversation:', error);
     return NextResponse.json(
       { error: 'Failed to get conversation' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    await deleteConversation(id, userId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete conversation' },
       { status: 500 }
     );
   }

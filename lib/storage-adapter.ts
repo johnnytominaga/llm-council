@@ -11,6 +11,7 @@ import {
   addUserMessage as dbAddUserMessage,
   addAssistantMessage as dbAddAssistantMessage,
   updateConversationTitle as dbUpdateConversationTitle,
+  deleteConversation as dbDeleteConversation,
 } from './storage';
 
 import type { Conversation, ConversationMetadata } from './storage';
@@ -24,5 +25,6 @@ export const listConversations = dbListConversations;
 export const addUserMessage = dbAddUserMessage;
 export const addAssistantMessage = dbAddAssistantMessage;
 export const updateConversationTitle = dbUpdateConversationTitle;
+export const deleteConversation = dbDeleteConversation;
 
 export type { Conversation, ConversationMetadata };

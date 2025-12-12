@@ -4,9 +4,18 @@
 
 import { OPENROUTER_API_KEY, OPENROUTER_API_URL } from './config';
 
+export type MessageContent =
+  | string
+  | Array<{
+      type: 'text' | 'image_url' | 'file';
+      text?: string;
+      image_url?: { url: string };
+      file?: { type: 'application/pdf'; url: string };
+    }>;
+
 export interface Message {
   role: string;
-  content: string;
+  content: MessageContent;
 }
 
 export interface ModelResponse {
@@ -155,6 +164,11 @@ export async function queryModelStream(
     messages,
     stream: true,
   };
+
+  // Debug: log payload when it contains multimodal content
+  if (messages.some(m => Array.isArray(m.content))) {
+    console.log('Sending multimodal payload to OpenRouter:', JSON.stringify(payload, null, 2));
+  }
 
   let lastError: Error | null = null;
 

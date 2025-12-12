@@ -17,6 +17,7 @@ export interface Conversation {
 export interface Message {
   role: 'user' | 'assistant';
   content?: string;
+  attachments?: any[];
   stage1?: any[];
   stage2?: any[];
   stage3?: any;
@@ -87,13 +88,26 @@ export async function getConversation(conversationId: string, userId: string): P
     id: conv.id,
     created_at: conv.createdAt.toISOString(),
     title: conv.title,
-    messages: messages.map((msg) => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content || undefined,
-      stage1: msg.stage1 ? JSON.parse(msg.stage1) : undefined,
-      stage2: msg.stage2 ? JSON.parse(msg.stage2) : undefined,
-      stage3: msg.stage3 ? JSON.parse(msg.stage3) : undefined,
-    })),
+    messages: messages.map((msg) => {
+      let attachments = undefined;
+      if (msg.attachments) {
+        try {
+          attachments = JSON.parse(msg.attachments);
+        } catch (e) {
+          console.warn('Failed to parse attachments for message:', msg.id, 'Value:', msg.attachments);
+          attachments = undefined;
+        }
+      }
+
+      return {
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content || undefined,
+        attachments,
+        stage1: msg.stage1 ? JSON.parse(msg.stage1) : undefined,
+        stage2: msg.stage2 ? JSON.parse(msg.stage2) : undefined,
+        stage3: msg.stage3 ? JSON.parse(msg.stage3) : undefined,
+      };
+    }),
   };
 }
 
@@ -139,7 +153,12 @@ export async function listConversations(userId: string): Promise<ConversationMet
   return conversationsWithCounts;
 }
 
-export async function addUserMessage(conversationId: string, content: string, userId: string): Promise<void> {
+export async function addUserMessage(
+  conversationId: string,
+  content: string,
+  userId: string,
+  attachments?: any[]
+): Promise<void> {
   /**
    * Add a user message to a conversation.
    *
@@ -147,6 +166,7 @@ export async function addUserMessage(conversationId: string, content: string, us
    *   conversationId: Conversation identifier
    *   content: User message content
    *   userId: User ID to scope conversation to user
+   *   attachments: Optional file attachments
    */
   const conv = await db.query.conversation.findFirst({
     where: (conversations, { eq, and }) =>
@@ -162,6 +182,7 @@ export async function addUserMessage(conversationId: string, content: string, us
     conversationId,
     role: 'user',
     content,
+    attachments: attachments ? JSON.stringify(attachments) : undefined,
     createdAt: new Date(),
   });
 
@@ -237,4 +258,28 @@ export async function updateConversationTitle(conversationId: string, title: str
     .update(conversation)
     .set({ title, updatedAt: new Date() })
     .where(eq(conversation.id, conversationId));
+}
+
+export async function deleteConversation(conversationId: string, userId: string): Promise<void> {
+  /**
+   * Delete a conversation and all its messages.
+   *
+   * Args:
+   *   conversationId: Conversation identifier
+   *   userId: User ID to scope conversation to user
+   */
+  const conv = await db.query.conversation.findFirst({
+    where: (conversations, { eq, and }) =>
+      and(eq(conversations.id, conversationId), eq(conversations.userId, userId)),
+  });
+
+  if (!conv) {
+    throw new Error(`Conversation ${conversationId} not found`);
+  }
+
+  // Delete all messages associated with the conversation
+  await db.delete(message).where(eq(message.conversationId, conversationId));
+
+  // Delete the conversation
+  await db.delete(conversation).where(eq(conversation.id, conversationId));
 }

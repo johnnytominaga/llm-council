@@ -2,8 +2,53 @@
  * 3-stage LLM Council orchestration.
  */
 
-import { queryModelsParallel, queryModel, queryModelStream, Message, StreamChunk } from './openrouter';
+import { queryModelsParallel, queryModel, queryModelStream, Message, MessageContent, StreamChunk } from './openrouter';
 import { COUNCIL_MODELS, CHAIRMAN_MODEL } from './config';
+
+/**
+ * Helper function to build message content with attachments for OpenRouter.
+ */
+function buildMessageContent(text: string, attachments?: any[]): MessageContent {
+  if (!attachments || attachments.length === 0) {
+    return text;
+  }
+
+  const contentParts: any[] = [];
+
+  // Add text content if present
+  if (text) {
+    contentParts.push({ type: 'text', text });
+  }
+
+  // Add each attachment in OpenRouter format
+  for (const attachment of attachments) {
+    console.log('Building message content with attachment:', {
+      filename: attachment.filename,
+      contentType: attachment.contentType,
+      url: attachment.url.substring(0, 100) + '...',
+    });
+
+    if (attachment.contentType.startsWith('image/')) {
+      // Image attachment
+      contentParts.push({
+        type: 'image_url',
+        image_url: { url: attachment.url },
+      });
+    } else if (attachment.contentType === 'application/pdf') {
+      // PDF attachment
+      contentParts.push({
+        type: 'file',
+        file: {
+          type: 'application/pdf',
+          url: attachment.url,
+        },
+      });
+    }
+  }
+
+  console.log('Built content parts:', JSON.stringify(contentParts, null, 2));
+  return contentParts;
+}
 
 export interface Stage1Result {
   model: string;
@@ -393,13 +438,17 @@ export interface StreamCallbacks {
 export async function stage1CollectResponsesStream(
   userQuery: string,
   councilModels: string[],
-  onChunk: (model: string, chunk: string) => void
+  onChunk: (model: string, chunk: string) => void,
+  attachments?: any[]
 ): Promise<Stage1Result[]> {
   /**
    * Stage 1 with streaming: Collect individual responses from all council models.
    * Calls onChunk for each text chunk received from any model.
    */
-  const messages: Message[] = [{ role: 'user', content: userQuery }];
+  const messages: Message[] = [{
+    role: 'user',
+    content: buildMessageContent(userQuery, attachments)
+  }];
 
   // Query all models in parallel with streaming
   const promises = councilModels.map(async (model) => {

@@ -50,28 +50,28 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, stre
   }
 
   return (
-    <Card className="my-6 bg-gray-50 border-gray-200">
+    <Card className="my-6">
       <CardHeader>
-        <CardTitle className="text-base text-gray-900">Stage 2: Peer Rankings</CardTitle>
+        <CardTitle className="text-base text-neutral-100 font-medium tracking-tight">Stage 2: Peer Rankings</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {aggregateRankings && aggregateRankings.length > 0 && (
-          <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-            <h4 className="text-sm font-semibold text-blue-700 mb-3">Aggregate Rankings (Street Cred)</h4>
-            <p className="text-xs text-gray-600 mb-3">
+          <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 p-4 ring-1 ring-primary/20">
+            <h4 className="mb-3 text-sm font-semibold text-primary">Aggregate Rankings (Street Cred)</h4>
+            <p className="mb-3 text-xs text-neutral-300">
               Combined results across all peer evaluations (lower score is better):
             </p>
             <div className="space-y-2">
               {aggregateRankings.map((agg, index) => (
-                <div key={index} className="flex items-center gap-3 p-2.5 bg-white rounded border border-blue-200">
-                  <span className="text-blue-700 font-bold text-base min-w-[35px]">#{index + 1}</span>
-                  <span className="flex-1 text-gray-900 font-mono text-sm font-medium">
+                <div key={index} className="flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/60 p-2.5">
+                  <span className="min-w-[35px] text-base font-bold text-primary">#{index + 1}</span>
+                  <span className="flex-1 text-sm font-medium font-mono text-neutral-100">
                     {agg.model.split('/')[1] || agg.model}
                   </span>
-                  <span className="text-gray-600 text-xs font-mono">
+                  <span className="text-xs font-mono text-neutral-400">
                     Avg: {agg.average_rank.toFixed(2)}
                   </span>
-                  <span className="text-gray-600 text-xs">
+                  <span className="text-xs text-neutral-400">
                     ({agg.rankings_count} votes)
                   </span>
                 </div>
@@ -81,8 +81,8 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, stre
         )}
 
         <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Raw Evaluations</h4>
-          <p className="text-xs text-gray-600 mb-4">
+          <h4 className="mb-2 text-sm font-semibold text-neutral-100">Raw Evaluations</h4>
+          <p className="mb-4 text-xs text-neutral-400">
             Each model evaluated all responses (anonymized as Response A, B, C, etc.) and provided rankings.
             Below, model names are shown in <strong>bold</strong> for readability, but the original evaluation used anonymous labels.
           </p>
@@ -103,23 +103,23 @@ export default function Stage2({ rankings, labelToModel, aggregateRankings, stre
 
               return (
                 <TabsContent key={model} value={model} className="mt-4 space-y-4">
-                  <div className="bg-white p-4 rounded border border-gray-200">
-                    <div className="text-gray-600 text-xs font-mono mb-3">{model}</div>
-                    <div className="prose prose-sm max-w-none">
+                  <div className="rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 ring-1 ring-neutral-800">
+                    <div className="mb-3 text-xs font-mono text-neutral-400">{model}</div>
+                    <div className="prose prose-sm prose-invert max-w-none">
                       <ReactMarkdown>
                         {deAnonymizeText(content, labelToModel)}
                       </ReactMarkdown>
                       {isStreaming && (
-                        <span className="inline-block ml-0.5 font-bold text-blue-500 animate-pulse">▊</span>
+                        <span className="inline-block ml-0.5 animate-pulse font-bold text-primary">▊</span>
                       )}
                     </div>
 
                     {!isStreaming && parsedRanking && parsedRanking.length > 0 && (
-                      <div className="mt-4 pt-4 border-t-2 border-gray-200">
-                        <strong className="text-blue-700 text-xs">Extracted Ranking:</strong>
-                        <ol className="mt-2 pl-6 space-y-1">
+                      <div className="mt-4 border-t-2 border-neutral-800 pt-4">
+                        <strong className="text-xs text-primary">Extracted Ranking:</strong>
+                        <ol className="mt-2 space-y-1 pl-6">
                           {parsedRanking.map((label, i) => (
-                            <li key={i} className="text-sm font-mono text-gray-900">
+                            <li key={i} className="text-sm font-mono text-neutral-100">
                               {labelToModel && labelToModel[label]
                                 ? labelToModel[label].split('/')[1] || labelToModel[label]
                                 : label}

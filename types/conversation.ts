@@ -2,9 +2,18 @@
  * Shared type definitions for conversations and messages.
  */
 
+export interface Attachment {
+    key: string;
+    url: string;
+    filename: string;
+    contentType: string;
+    size: number;
+}
+
 export interface Message {
     role: "user" | "assistant";
     content?: string;
+    attachments?: Attachment[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     stage1?: any[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
