@@ -6,11 +6,15 @@ import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 
 interface SafeMarkdownProps {
-  children: string;
+  children: string | undefined | null;
   className?: string;
 }
 
 export default function SafeMarkdown({ children, className }: SafeMarkdownProps) {
+  // Handle undefined or null children
+  if (!children) {
+    return null;
+  }
   const components: Components = {
     // Handle images with invalid src gracefully
     img: ({ node, ...props }) => {
