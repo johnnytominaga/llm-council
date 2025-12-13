@@ -19,11 +19,15 @@ export default function SafeMarkdown({ children, className }: SafeMarkdownProps)
     // Handle images with invalid src gracefully
     img: ({ node, ...props }) => {
       // Skip images with empty, local, or invalid URLs
-      if (!props.src ||
-          props.src.trim() === '' ||
-          props.src.startsWith('/mnt/') ||
-          props.src.startsWith('file://') ||
-          (!props.src.startsWith('http') && !props.src.startsWith('data:'))) {
+      if (!props.src || typeof props.src !== 'string') {
+        return null;
+      }
+
+      const src = props.src.trim();
+      if (src === '' ||
+          src.startsWith('/mnt/') ||
+          src.startsWith('file://') ||
+          (!src.startsWith('http') && !src.startsWith('data:'))) {
         return null;
       }
       // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
